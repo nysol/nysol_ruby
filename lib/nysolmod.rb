@@ -45,6 +45,35 @@ def args2dict(arg,klist,uk=nil)
 	return kwargs
 end
 
+
+
+# arg :hash or string
+def arg2dict(arg,klist,uk=nil)
+	kwargs ={}
+	if arg.instance_of?(String) then
+		kwargs["cmdstr"] = "'#{arg}'" 
+	elsif arg.instance_of?(Hash) then
+		kwargs = arg		
+	else
+		p "args type str or hash"
+		return None
+	end
+	
+	exval = []
+	kwargs.each{|k,v|
+		next if klist[0].include?(k) and v.instance_of?(String)
+		next if klist[0].include?(k)
+		next if klist[1].include?(k) and v == true
+		exval.push(k)
+		p k + " is not keyword"
+	}
+	exval.each{|k|
+		kwargs.delete(k)
+	}
+	return kwargs
+end
+
+
 class NysolMOD
 
 	attr_accessor :name, :kwd,:inp,:outp,:refp,:unp,:msg
@@ -225,6 +254,16 @@ class NysolMOD
 	def msave(args)
 		return Nysol_Msave.new(args).addPre(self)
 	end
+
+	def self.cmd(args)
+		return Nysol_Excmd.new(args)
+  end
+
+	def cmd(args)
+		return Nysol_Excmd.new(args).addPre(self)
+	end
+
+
 
 
 	def self.m2cross(args)
@@ -828,6 +867,13 @@ class  Nysol_Msave < NysolMOD
 	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("mload")
 	def initialize(args)
 		super("msave",args2dict(args,@@kwdList))
+	end
+end
+
+class  Nysol_Excmd < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("cmd")
+	def initialize(args)
+		super("cmd",arg2dict(args,@@kwdList))
 	end
 end
 

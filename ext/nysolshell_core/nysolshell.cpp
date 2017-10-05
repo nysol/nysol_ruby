@@ -43,7 +43,7 @@ int run_sub(VALUE tlist,
 	if(TYPE(rb_ary_entry(tlist, 1))==T_STRING){
 		para_part = RSTRING_PTR(rb_ary_entry(tlist, 1));
 	}
-	cmpcaplocal.paralist=kglib::splitToken(para_part, ' ',true);
+	cmpcaplocal.paralist=kglib::splitTokenQ(para_part, ' ',true);
 
 	VALUE ilink = rb_ary_entry(tlist, 2);
 	VALUE mlink = rb_ary_entry(tlist, 3);
