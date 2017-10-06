@@ -70,6 +70,7 @@ def arg2dict(arg,klist,uk=nil)
 	exval.each{|k|
 		kwargs.delete(k)
 	}
+	p kwargs
 	return kwargs
 end
 
