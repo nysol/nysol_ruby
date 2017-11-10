@@ -210,6 +210,7 @@ void kgMod::init(void) try
 		_tmpPath=k;
 		_env->setTmpPath(_tmpPath);
 	}
+
 	// エンコーディング
 	string s = _args.toString("encoding=",false);
 	if(! s.empty() ) _encoding=s;

@@ -1013,6 +1013,7 @@ void kgSortf::run_noargs() try
 }catch(kgOPipeBreakError& err){
 	// 終了処理
 	tempFile_.remove_all();
+
 }catch(kgError& err){
 	tempFile_.remove_all();
 	errorEnd(err);

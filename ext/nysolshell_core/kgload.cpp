@@ -28,6 +28,17 @@ using namespace std;
 using namespace kglib;
 using namespace kgmod;
 
+static VALUE str2rbstr(string ptr)
+{
+	// rb_external_str_new_cstrが定義されているばそちらを使う
+	#if defined(rb_external_str_new_cstr)
+		return rb_external_str_new_cstr(ptr.c_str());
+	#else
+		return rb_str_new2(ptr.c_str());
+	#endif
+	
+}
+
 // -----------------------------------------------------------------------------
 // コンストラクタ(モジュール名，バージョン登録,パラメータ)
 // -----------------------------------------------------------------------------
@@ -65,24 +76,22 @@ void kgLoad::setArgs(void)
 // -----------------------------------------------------------------------------
 // パラメータセット＆入出力ファイルオープン
 // -----------------------------------------------------------------------------
-void kgLoad::setArgs(int i_p,int o_p)
+void kgLoad::setArgs(int inum,int *i_p,int onum,int* o_p)
 {
 	// パラメータチェック
 	_args.paramcheck("i=,o=",kgArgs::COMMON|kgArgs::IODIFF);
 
+	if(inum>1 || onum>1){
+		throw kgError("no match IO");
+	}
+
 	// 入出力ファイルオープン
-	if(i_p>0){
-		_iFile.popen(i_p, _env,_nfn_i);
-	}
-	else{
-		// 入出力ファイルオープン
-		_iFile.open(_args.toString("i=",false), _env,_nfn_i);
-	}
-	if(o_p>0){
-		_oFile.popen(o_p, _env,_nfn_o);
-	}else{
-		_oFile.open(_args.toString("o=",false), _env,_nfn_o);
-	}
+	if(inum==1 && *i_p > 0){ _iFile.popen(*i_p, _env,_nfn_i); }
+	else     { _iFile.open(_args.toString("i=",false), _env,_nfn_i); }
+
+	if(onum==1 && *o_p > 0){ _oFile.popen(*o_p, _env,_nfn_o); }
+	else     { _oFile.open(_args.toString("o=",false), _env,_nfn_o);}
+
 	_iFile.read_header();
 	
 }
@@ -92,7 +101,6 @@ void kgLoad::setArgs(int i_p,int o_p)
 // -----------------------------------------------------------------------------
 int kgLoad::run(void) try 
 {
-
 	char * data;
 	size_t fcnt=0;
 
@@ -142,12 +150,12 @@ int kgLoad::run(void) try
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgLoad::run(int i_p,int o_p) try 
+int kgLoad::run(int inum,int *i_p,int onum, int* o_p) try 
 {
 	size_t fcnt=0;
 
 	// パラメータセット＆入出力ファイルオープン
-	setArgs(i_p,o_p);
+	setArgs(inum, i_p,onum, o_p);
 
 	// headerがあるとき
 	if(!_nfn_i){
@@ -189,34 +197,32 @@ int kgLoad::run(int i_p,int o_p) try
 	return 1;
 }
 
-
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgLoad::run(VALUE i_p,int o_p) try 
+int kgLoad::run(VALUE i_p,int onum,int *o_p) try 
 {
+	//size_t fcnt=0;
 
-	size_t fcnt=0;
-	//VALUE i_p = *i_px; 
 	// パラメータチェック
 	_args.paramcheck("o=",kgArgs::COMMON|kgArgs::IODIFF);
 
-	if(o_p>0){
-		_oFile.popen(o_p, _env,_nfn_o);
-	}else{
-		_oFile.open(_args.toString("o=",false), _env,_nfn_o);
+	if(onum>1){
+		throw kgError("no match IO");
 	}
+	if(onum==1 && *o_p > 0){ _oFile.popen(*o_p, _env,_nfn_o); }
+	else     { _oFile.open(_args.toString("o=",false), _env,_nfn_o);}
+
 
 	if(TYPE(i_p)==T_ARRAY){ 
-	
 		size_t max = RARRAY_LEN(i_p);
 		size_t fldsize = 0;
 		size_t nowlin = 0;
+
 		vector<string> headdata;
 		if ( max > 0 ){
 			// headerがあるとき
 			if(!_nfn_i){
-				
 				VALUE head = rb_ary_entry(i_p, nowlin);
 				fldsize = RARRAY_LEN(head); 
 				for(size_t i=0 ; i<fldsize;i++){
@@ -266,4 +272,61 @@ int kgLoad::run(VALUE i_p,int o_p) try
 	errorEnd(err);
 	return 1;
 }
+
+
+// -----------------------------------------------------------------------------
+// 実行
+// -----------------------------------------------------------------------------
+int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx) try 
+{
+	// パラメータチェック
+	_args.paramcheck("i=",kgArgs::COMMON|kgArgs::IODIFF);
+
+	if(inum>1){
+		throw kgError("no match IO");
+	}
+
+	kgCSVfld rls;
+
+	// 入出力ファイルオープン
+	if(inum==1 && *i_p > 0){ rls.popen(*i_p, _env,_nfn_i); }
+	else     { rls.open(_args.toString("i=",false), _env,_nfn_i); }
+
+	rls.read_header();
+
+	if(TYPE(o_p)==T_ARRAY){ 
+		while( EOF != rls.read() ){
+			pthread_mutex_lock(mtx);
+			{
+				VALUE tlist = rb_ary_new2(rls.fldSize());
+				for(size_t j=0 ;j<rls.fldSize();j++){
+					rb_ary_store( tlist,j,str2rbstr(rls.getVal(j)) );
+				}
+				rb_ary_push(o_p,tlist);
+			}
+			pthread_mutex_unlock(mtx);
+		}
+		rls.close();
+	}
+	successEnd();
+	return 0;
+
+}catch(kgError& err){
+	errorEnd(err);
+	return 1;
+}catch (const exception& e) {
+	kgError err(e.what());
+	errorEnd(err);
+	return 1;
+}catch(char * er){
+	kgError err(er);
+	errorEnd(err);
+	return 1;
+}catch(...){
+	kgError err("unknown error" );
+	errorEnd(err);
+	return 1;
+}
+
+
 

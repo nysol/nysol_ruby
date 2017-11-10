@@ -16,48 +16,52 @@
  * for more details.
 
  ////////// LICENSE INFO ////////////////////*/
-// =============================================================================
-// kgvcat.h ベクトルの併合クラス
-// =============================================================================
 #pragma once
+
+#include <string>
+#include <vector>
+#include <fstream>
 #include <kgConfig.h>
+#include <kgEnv.h>
 #include <kgmod.h>
+#include <kgError.h>
+#include <kgArgs.h>
 #include <kgArgFld.h>
 #include <kgCSV.h>
 #include <kgCSVout.h>
-
+#include <fcntl.h>
 using namespace kglib;
 
 namespace kgmod { ////////////////////////////////////////////// start namespace
 
-class kgVcat:public kgMod 
-{
+class kg2Tee : public kgMod {
+
 	// 引数
-	kgCSVfld _iFile;  // i=
-	kgCSVout _oFile;  // o=
-	kgArgFld _vfField; // vf=
-	kgstr_t	 _newname; //a=
-	char		 _delim; //delim=
-	bool     _add; //-A
-	// 引数セット
-  void setArgs(void);
+	kgstr_t         _iName;
+	vector<kgstr_t> _oName;
+	int         _iFD;
+	vector<int> _oFD;
+	vector<bool> _endFlg;
+	kgAutoPtr2<char> _buf_ap;
+	char* _buf;
+
+
+	void setArgs(void);
 	void setArgs(int inum,int *i,int onum, int* o);
-	void setArgsMain(void);	
 
 	int runMain(void);
 
 public:
-	// コンストラクタ&引数セット
-	kgVcat(void);
-	~kgVcat(void){}
+  // コンストラクタ
+	kg2Tee(void);
+	~kg2Tee(void){}
+
+	int run(void);
+	int run(int inum,int *i,int onum, int* o);
 
 	// コマンド固有の公開メソッド
-	size_t iRecNo(void) const { return _iFile.recNo(); }
-	size_t oRecNo(void) const { return _oFile.recNo(); }
-
-	//実行メソッド
-	int run(void);
-	int run(int inum,int *i_p,int onum, int* o_p);
+	size_t iRecNo(void) const { return -1; }
+	size_t oRecNo(void) const { return -1; }
 
 };
 

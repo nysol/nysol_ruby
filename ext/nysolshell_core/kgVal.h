@@ -28,10 +28,10 @@
 #include <boost/date_time/gregorian/gregorian.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-using namespace std;
+//using namespace std;
 using namespace kglib;
-using namespace boost::gregorian;
-using namespace boost::posix_time;
+//using namespace boost::gregorian;
+//using namespace boost::posix_time;
 
 namespace kglib ////////////////////////////////////////////// namespace start
 {
@@ -44,9 +44,9 @@ class kgVal
   	double r; // type=N 
   	char*  s; // type=S 
   	bool   b; // type=B 
-  	date*  d; // type=D 
-  	ptime* t; // type=T 
-  	ptime* u; // type=u 
+  	boost::gregorian::date*  d; // type=D 
+  	boost::posix_time::ptime* t; // type=T 
+  	boost::posix_time::ptime* u; // type=u 
 	} _v;
 
 public:
@@ -58,16 +58,16 @@ public:
 	void r(double v) { _v.r=v; _null=false;}
 	void s(char*  v) ;
 	void b(bool   v) {_v.b=v; _null=false;}
-	void d(date*  v) {_v.d=v; _null=false;}
-	void t(ptime* v) {_v.t=v; _null=false;}
-	void u(ptime* v) {_v.u=v; _null=false;}
+	void d(boost::gregorian::date*  v) {_v.d=v; _null=false;}
+	void t(boost::posix_time::ptime* v) {_v.t=v; _null=false;}
+	void u(boost::posix_time::ptime* v) {_v.u=v; _null=false;}
 
 	double r(void) const {return _v.r;}
 	char*  s(void) const {return _v.s;}
 	bool   b(void) const {return _v.b;}
-	date*  d(void) const {return _v.d;}
-	ptime* t(void) const {return _v.t;}
-	ptime* u(void) const {return _v.u;}
+	boost::gregorian::date*  d(void) const {return _v.d;}
+	boost::posix_time::ptime* t(void) const {return _v.t;}
+	boost::posix_time::ptime* u(void) const {return _v.u;}
 
 	void type(char type);
 	void null(bool null) { 

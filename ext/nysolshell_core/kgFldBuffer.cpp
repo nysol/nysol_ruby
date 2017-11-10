@@ -142,6 +142,7 @@ int kgFldBuffer::getFld(char ** pnt, int fldcnt)
 				if (page ==NULL) { return EOF;}	
 			}
 		}
+
 		pnt[fldno++] = page+bgn;
 		r_pos_++;
 		if(fldno==fldcnt){ break;}

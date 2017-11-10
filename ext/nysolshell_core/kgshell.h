@@ -35,27 +35,39 @@ using namespace kgmod;
 
 struct argST{
 	kgMod * mobj;
-	int i_p;
-	int o_p;
-	int m_p;
-	int u_p;
+	int i_cnt;
+	int o_cnt;
+//	int m_p;
+//	int u_p;
+	int *i_p;
+	int *o_p;
 	VALUE list;
-	
+	pthread_mutex_t *mutex;
 };
 
 struct cmdCapselST{
 	kgstr_t cmdname;
 	vector<kgstr_t> paralist;
-	int iotype; // 1:i,2:o,4:m,8:u
 	kgstr_t istr;
 	VALUE iobj;
 	kgstr_t mstr;
 	VALUE mobj;
+	VALUE oobj;
 
+};
+
+struct linkST{
+	kgstr_t frTP;
+	int frID;
+	kgstr_t toTP;
+	int toID;
 };
 
 
 class kgshell{
+
+	pthread_mutex_t _mutex;
+	pthread_cond_t 	_threadState;
 
 	typedef map<std::string, boost::function<kgMod* ()> > kgmod_map_t;
 	typedef map<std::string, int > kgmod_run_t;
@@ -69,17 +81,21 @@ class kgshell{
 	kgMod **_modlist;
 
 	// pipe LIST
-	map<int,int> _ipipe_map;
-	map<int,int> _mpipe_map;
-	map<int,int> _opipe_map;
-	int _lastpiped[2];
+	//map<int,int> _ipipe_map;
+	//map<int,int> _mpipe_map;
+	//map<int,int> _opipe_map;
 
-	void makePipeList(vector< vector<int> >& plist,bool tp);
+	typedef map<int, map<string,vector<int> > > iomap_t;
+	iomap_t _ipipe_map;
+	iomap_t _opipe_map;
+	int _csvpiped[2];
+
+	void makePipeList(vector<linkST>& plist);
 
 
 public:
 	// コンストラクタ
-	kgshell();
+	kgshell(int mflg=false);
 	~kgshell(void){
 		if(_th_st_pp){
 			vector<int> chk(_clen);
@@ -100,24 +116,18 @@ public:
 				delete _modlist[i];
 			}
 			delete[] _modlist;
-			
 		}
 		if(_iterrtn){
 			delete _iterrtn;
 		}
 	}
-	
-	void msgOff(){  _env.verblvl(2);	}
-
 	//実行メソッド
-	static void *run_noargs_pths(void *arg);
-	static void *run_noargs_pthsm(void *arg);
-	static void *run_noargs_pths1(void *arg);
-	static void *run_noargs_pthsp(void *arg);
+	static void *run_func(void *arg);
+	static void *run_writelist(void *arg);
+	static void *run_readlist(void *arg);
 
-	int run(vector< cmdCapselST > &cmdcap,	vector< vector<int> >& plist,bool tp,VALUE list);
-
-	kgCSVfld* runiter(vector< cmdCapselST > &cmdcap,	vector< vector<int> >& plist,bool tp,VALUE list);
+	int run(vector<cmdCapselST> &cmdcap,vector<linkST> & plist);
+	kgCSVfld* runiter(vector<cmdCapselST> &cmdcap,vector<linkST> & plist);
 	int getparams(kgstr_t cmdname,VALUE list);
 
 

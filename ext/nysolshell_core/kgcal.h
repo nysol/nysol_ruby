@@ -33,14 +33,14 @@
 #include <boost/spirit/include/classic_ast.hpp>
 
 using namespace kglib;
-using namespace boost::spirit::classic;
+//using namespace boost::spirit::classic;
 
 namespace kgmod { ////////////////////////////////////////////// start namespace
 
 class kgCal_PreRSL{
 	vector<kgVal>   _prvResults;
-	vector< kgAutoPtr1<ptime> > _prvtimeRsls;
-	vector< kgAutoPtr1<date> >  _prvdateRsls;
+	vector< kgAutoPtr1<boost::posix_time::ptime> > _prvtimeRsls;
+	vector< kgAutoPtr1<boost::gregorian::date> >  _prvdateRsls;
 	vector< kgAutoPtr2<char> >  _prvcharRsls;
 	public:
 		void resize(size_t i){
@@ -69,11 +69,11 @@ class kgCal_PreRSL{
 						_prvResults[pos].s(p);
 						break;
 					case 'D':
-						_prvdateRsls[pos].set( new date(*(rls->d())) );
+						_prvdateRsls[pos].set( new boost::gregorian::date(*(rls->d())) );
 						_prvResults[pos].d(_prvdateRsls[pos].get());
 						break;
 					case 'T':
-  					_prvtimeRsls[pos].set( new ptime(*(rls->t())) );
+  					_prvtimeRsls[pos].set( new boost::posix_time::ptime(*(rls->t())) );
 						_prvResults[pos].t(_prvtimeRsls[pos].get());
 						break;
 					}
@@ -95,8 +95,8 @@ class kgCal:public kgMod {
 	kgCSVkey  _iFile;  // i=
 	kgCSVout  _oFile;  // o=
 	kgVal     _prvRsl;// 前行の結果:初期値はNULL
-	kgAutoPtr1 <ptime> _prv_t_ap;
-	kgAutoPtr1 <date> _prv_d_ap;
+	kgAutoPtr1 <boost::posix_time::ptime> _prv_t_ap;
+	kgAutoPtr1 <boost::gregorian::date> _prv_d_ap;
 //	char  _prv_s_p[KG_MAX_STR_LEN];
 
 	vector<kgstr_t> _exprs;   // c=
@@ -107,13 +107,9 @@ class kgCal:public kgMod {
 
 	kgFuncMap _funcMap;
 
-	// 引数セット
-	void setArgs(void);
-	void setArgs(int i,int o);
-
 	// 構文木を走査するiterator型定義
-	typedef tree_match<std::string::const_iterator,
-		node_val_data_factory<void *> >::tree_iterator tree_node_iter_t;
+	typedef boost::spirit::classic::tree_match<std::string::const_iterator,
+		boost::spirit::classic::node_val_data_factory<void *> >::tree_iterator tree_node_iter_t;
 
 	// 計算実行
 	void calculate( tree_node_iter_t const &iter );
@@ -136,6 +132,14 @@ class kgCal:public kgMod {
 	//前回データセット
 	//void prersl_set(kgVal *rls);
 
+	// 引数セット
+	void setArgs(void);
+	void setArgs(int inum,int *i,int onum, int* o);
+	void setArgsMain(void);	
+
+	int runMain(void);
+
+
 public:
 	// コンストラクタ
 	kgCal(void);
@@ -147,8 +151,7 @@ public:
 
 	//実行メソッド
 	int run(void);
-	//実行メソッド
-	int run(int i,int o);
+	int run(int inum,int *i,int onum, int* o);
 
 };
 

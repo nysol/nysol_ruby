@@ -102,7 +102,7 @@ class kgFunction_const_real : public kgFunction
 // -------------------------------------------------------------------------
 class kgFunction_const_date : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_const_date(void)
 		{_result.type('D');_name="const";_minArgc=0;_maxArgc=0;}
@@ -113,7 +113,7 @@ class kgFunction_const_date : public kgFunction
 // -------------------------------------------------------------------------
 class kgFunction_const_time : public kgFunction
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_const_time(void)
 		{_result.type('T');_name="const";_minArgc=0;_maxArgc=0;}
@@ -124,7 +124,7 @@ class kgFunction_const_time : public kgFunction
 // -------------------------------------------------------------------------
 class kgFunction_const_utime : public kgFunction
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_const_utime(void)
 		{_result.type('T');_name="const";_minArgc=0;_maxArgc=0;}
@@ -180,7 +180,7 @@ class kgFunction_field_real : public kgFunction_field
 // -------------------------------------------------------------------------
 class kgFunction_field_date : public kgFunction_field
 {
-	kgAutoPtr1<date> _ap;
+	kgAutoPtr1<boost::gregorian::date> _ap;
 	public:
 	kgFunction_field_date(void) {_result.type('D');}
 	virtual void run(void);
@@ -190,7 +190,7 @@ class kgFunction_field_date : public kgFunction_field
 // -------------------------------------------------------------------------
 class kgFunction_field_time : public kgFunction_field
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_field_time(void){_result.type('T');}
 	virtual void run(void);
@@ -242,7 +242,7 @@ class kgFunction_pfield_real : public kgFunction_pfield
 // -------------------------------------------------------------------------
 class kgFunction_pfield_date : public kgFunction_pfield
 {
-	kgAutoPtr1<date> _ap;
+	kgAutoPtr1<boost::gregorian::date> _ap;
 	public:
 	kgFunction_pfield_date(void){ _result.type('D');}
 	virtual void run(void);
@@ -252,7 +252,7 @@ class kgFunction_pfield_date : public kgFunction_pfield
 // -------------------------------------------------------------------------
 class kgFunction_pfield_time : public kgFunction_pfield
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_pfield_time(void){_result.type('T');}
 	virtual void run(void);
@@ -295,7 +295,7 @@ class kgFunction_add_real : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_add_day : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_add_day(void)
 	{_result.type('D');_name="+";_minArgc=2;_maxArgc=2;}
@@ -306,7 +306,7 @@ class kgFunction_add_day : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_add_sec : public kgFunction
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_add_sec(void)
 	{_result.type('T');_name="+";_minArgc=2;_maxArgc=2;}
@@ -358,7 +358,7 @@ class kgFunction_sub_time : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_sub_day : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_sub_day(void)
 	{_result.type('D');_name="-";_minArgc=2;_maxArgc=2;}
@@ -369,7 +369,7 @@ class kgFunction_sub_day : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_sub_sec : public kgFunction
 {
-	kgAutoPtr1 <ptime> _ap;
+	kgAutoPtr1 <boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_sub_sec(void)
 	{_result.type('T');_name="-";_minArgc=2;_maxArgc=2;}
@@ -921,7 +921,7 @@ class kgFunction_s2n : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_s2d : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_s2d(void)
 	{_result.type('D');_name="s2d";_minArgc=1;_maxArgc=1;}
@@ -932,7 +932,7 @@ class kgFunction_s2d : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_s2t : public kgFunction
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_s2t(void)
 	{_result.type('T');_name="s2t";_minArgc=1;_maxArgc=1;}
@@ -944,7 +944,7 @@ class kgFunction_s2t : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_t2d : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_t2d(void)
 	{_result.type('D');_name="t2d";_minArgc=1;_maxArgc=1;}
@@ -955,7 +955,7 @@ class kgFunction_t2d : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_d2t : public kgFunction
 {
-	kgAutoPtr1<ptime> _ap;
+	kgAutoPtr1<boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_d2t(void)
 	{_result.type('T');_name="d2t";_minArgc=1;_maxArgc=1;}
@@ -1154,7 +1154,7 @@ class kgFunction_t2julian : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_julian2d : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_julian2d(void)
 	{_result.type('D');_name="julian2d";_minArgc=1;_maxArgc=1;}
@@ -1165,7 +1165,7 @@ class kgFunction_julian2d : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_julian2t : public kgFunction
 {
-	kgAutoPtr1 <ptime> _ap;
+	kgAutoPtr1 <boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_julian2t(void)
 	{_result.type('T');_name="julian2t";_minArgc=1;_maxArgc=1;}
@@ -1176,7 +1176,7 @@ class kgFunction_julian2t : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_uxt2d : public kgFunction
 {
-	kgAutoPtr1 <date> _ap;
+	kgAutoPtr1 <boost::gregorian::date> _ap;
 	public:
 	kgFunction_uxt2d(void)
 	{_result.type('D');_name="uxt2d";_minArgc=1;_maxArgc=1;}
@@ -1187,7 +1187,7 @@ class kgFunction_uxt2d : public kgFunction
 // -----------------------------------------------------------------------------
 class kgFunction_uxt2t : public kgFunction
 {
-	kgAutoPtr1 <ptime> _ap;
+	kgAutoPtr1 <boost::posix_time::ptime> _ap;
 	public:
 	kgFunction_uxt2t(void)
 	{_result.type('T');_name="uxt2t";_minArgc=1;_maxArgc=1;}

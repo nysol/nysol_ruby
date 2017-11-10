@@ -20,12 +20,11 @@
 // kgtab2csv.h tsv->csv
 // =============================================================================
 #pragma once
-#include <ruby.h>
+#include "ruby.h"
 #include <kgmod.h>
 #include <kgArgFld.h>
 #include <kgCSV.h>
 #include <kgCSVout.h>
-
 using namespace kglib;
 
 namespace kgmod { ////////////////////////////////////////////// start namespace
@@ -38,7 +37,7 @@ class kgLoad : public kgMod
 
 	// 引数セット
 	void setArgs(void);
-	void setArgs(int i,int o);
+	void setArgs(int inum,int *i,int onum, int* o);
 
 public:
 	// コンストラクタ
@@ -52,8 +51,9 @@ public:
 	//実行メソッド
 	int run(void);
 	//実行メソッド
-	int run(int i,int o);
-	int run(VALUE i_p,int o_p);
+	int run(int inum,int *i_p,int onum, int* o_p);
+	int run(int inum,int *i,VALUE o_p,pthread_mutex_t *mtx);
+	int run(VALUE ,int onum, int* o_p);
 
 };
 

@@ -20,12 +20,13 @@
 // kgmod.h : モジュールの基本クラス
 // =============================================================================
 #pragma once
-#include <ruby.h>
+#include "ruby.h"
 #include <kgArgs.h>
 #include <kgEnv.h>
 #include <kgConfig.h>
 #include <csignal>
 #include <cstring>
+#include <pthread.h>
 
 using namespace kglib;
 
@@ -151,10 +152,16 @@ class kgMod
 	// ----------------------------------------------------------------
 	virtual int run(void)=0;
 	vector< vector<string> > params(void);
-	virtual int run(int i){ return 0;};
+
+	// ----------------------------------------------------------------
+	// run仮想関数
+	// ----------------------------------------------------------------
 	virtual int run(int i,int o){return 0;};
-	virtual int run(int i,int o,int m){return 0;}
-	virtual int run(VALUE i,int o){return 0;};
+	virtual int run(int inum,int *i,int onum, int* o){return 0;}
+	virtual int run(int inum,int *i,VALUE o,pthread_mutex_t *mtx){return 0;};
+	virtual int run(VALUE i_p,int onum, int* o_p){return 0;}
+
+
 
 };
 

@@ -28,7 +28,6 @@
 using namespace std;
 using namespace kglib;
 using namespace kgmod;
-
 // -----------------------------------------------------------------------------
 // コンストラクタ(モジュール名，バージョン登録,パラメータ)
 // -----------------------------------------------------------------------------
@@ -57,7 +56,7 @@ void kgExcmd::setArgs(void)
 
 	// 入出力ファイルオープン
 	string cv = _args.toString("cmdstr=",true);
-	if(cv.front() =='\''&&cv.back()=='\''){
+	if(cv.size()!=0&&cv[0] =='\''&&cv[cv.size()-1]=='\''){
 		cv = cv.substr(1,cv.size()-2);
 	}
 	
@@ -69,32 +68,6 @@ void kgExcmd::setArgs(void)
 	}
 	_cmdars[cmdstr.size()]=NULL;
 }
-
-// -----------------------------------------------------------------------------
-// パラメータセット＆入出力ファイルオープン
-// -----------------------------------------------------------------------------
-/*
-void kgExcmd::setArgs(int i_p,int o_p)
-{
-	// パラメータチェック
-	_args.paramcheck("i=,o=",kgArgs::COMMON|kgArgs::IODIFF);
-
-	// 入出力ファイルオープン
-	if(i_p>0){
-		_iFile.popen(i_p, _env,_nfn_i);
-	}
-	else{
-		// 入出力ファイルオープン
-		_iFile.open(_args.toString("i=",false), _env,_nfn_i);
-	}
-	if(o_p>0){
-		_oFile.popen(o_p, _env,_nfn_o);
-	}else{
-		_oFile.open(_args.toString("o=",false), _env,_nfn_o);
-	}
-	_iFile.read_header();
-	
-}*/
 
 // -----------------------------------------------------------------------------
 // 実行
@@ -121,19 +94,33 @@ int kgExcmd::run(void) try
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgExcmd::run(int i_p,int o_p) try 
+int kgExcmd::run(int inum,int *i_p,int onum, int* o_p) try 
 {
 
 	setArgs();
+
+
+	if(inum>1 || onum>1){
+		throw kgError("no match IO");
+	}
+
+	int i_p_t=-1; 
+	int o_p_t=-1;
+	// 入出力ファイルオープン
+	if(inum==1 && *i_p > 0){ i_p_t = *i_p; }
+	if(onum==1 && *o_p > 0){ o_p_t = *o_p; }
+
+
+
 	pid_t pid;
 	if ((pid = fork()) == 0) {	
 		if(i_p>0){
-			dup2(i_p, 0);
-			close(i_p);
+			dup2(i_p_t, 0);
+			close(i_p_t);
 		} 
 		if(o_p>0){
-			dup2(o_p, 1);
-			close(o_p);
+			dup2(o_p_t, 1);
+			close(o_p_t);
 		} 
 		execvp(_cmdars[0],(char*const*)_cmdars);
 		throw kgError("run error" );
@@ -141,9 +128,10 @@ int kgExcmd::run(int i_p,int o_p) try
 	}
 	else if (pid>0){//parent
 		int status = 0;
-		int ret = waitpid(pid, &status, 0);
-		if(i_p>0){ close(i_p);}
-		if(o_p>0){ close(o_p);}
+		//int ret = 
+		waitpid(pid, &status, 0);
+		if(i_p_t>0){ close(i_p_t);}
+		if(o_p_t>0){ close(o_p_t);}
 		successEnd();
 		return status;
 	}

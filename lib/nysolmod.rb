@@ -1,7 +1,106 @@
 #!/usr/bin/env ruby
-# encoding: utf-8
+#/* ////////// LICENSE INFO ////////////////////
+#
+# * Copyright (C) 2013 by NYSOL CORPORATION
+# *
+# * Unless you have received this program directly from NYSOL pursuant
+# * to the terms of a commercial license agreement with NYSOL, then
+# * this program is licensed to you under the terms of the GNU Affero General
+# * Public License (AGPL) as published by the Free Software Foundation,
+# * either version 3 of the License, or (at your option) any later version.
+# * 
+# * This program is distributed in the hope that it will be useful, but
+# * WITHOUT ANY EXPRESS OR IMPLIED WARRANTY, INCLUDING THOSE OF 
+# * NON-INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+# *
+# * Please refer to the AGPL (http://www.gnu.org/licenses/agpl-3.0.txt)
+# * for more details.
+#
+# ////////// LICENSE INFO ////////////////////*/
 require 'mparallelEXT'
 require 'nysolshell_core'
+
+
+def dicisionPosSub(mlist,iolist,baselist,dsppos,y,counter)
+
+	baselist.each{|i|
+		next if dsppos[i] != nil
+		dsppos[i] = [counter[y],y]
+		counter[y]+=1
+		newlist = iolist[i][2] + iolist[i][3] 
+		counter.push(0) if counter.size==y+1
+		dicisionPosSub(mlist,iolist,newlist,dsppos,y+1,counter)
+	}
+end
+
+	
+def dicisionPos(mlist,iolist)
+
+	startpos = []
+	mlist.each_with_index{|mm,i|
+		unless mm[2].empty? then
+			startpos.push(i) if mm[2].has_key?("i")
+			startpos.push(i) if mm[2].has_key?("m")
+		end
+	}
+
+	dsppos   = Array.new(mlist.size)
+	y=0
+	counter =[0]
+	dicisionPosSub(mlist,iolist,startpos,dsppos,y,counter)
+	
+	return dsppos , counter.size ,counter.max
+
+end
+
+def changeSVG(mlist,iolist,linklist,fname=nil)
+
+	dsppos,ymax,xmax = dicisionPos(mlist,iolist)
+
+	begin
+		if fname == nil then
+			f=STDOUT
+		else
+			f=open(fname, 'w')
+		end
+	
+		f.write("<svg height='#{ymax*60}' width='#{xmax*60}'>\n")
+		f.write("<defs>\n")
+		f.write("<marker id='endmrk' markerUnits='strokeWidth' markerWidth='3' markerHeight='3' viewBox='0 0 10 10' refX='5' refY='5' orient='auto'>\n")
+		f.write("<polygon points='0,0 5,5 0,10 10,5 ' fill='black'/>\n")
+		f.write("</marker>\n")
+		f.write("</defs>\n")
+
+		dsppos.each_with_index{|mm,i|
+			modobj = mlist[i]
+			x,y = mm
+			f.write("<g>\n")
+			f.write("<title>#{modobj[0]} #{modobj[1]}</title>\n" )
+
+			mstr = "<circle cx='#{x*60+20}' cy='#{y*60+20}' r='20' stroke='blue' fill='white' stroke-width='1'/>\n"
+			f.write(mstr)
+			mstr = "<text x='#{x*60}' y='#{y*60+20}' fill='black'>"
+			mstr +=  modobj[0]
+			mstr += " </text>\n"
+			f.write(mstr)
+			f.write("<g>\n")
+		}
+
+		linklist.each{|fr,to|
+			frNo = fr[1] 
+			toNo = to[1] 
+			frX , frY = dsppos[frNo]
+			toX , toY = dsppos[toNo]
+			f.write("<line x1='#{frX*60+20}' y1='#{frY*60+40}' x2='#{toX*60+20}' y2='#{toY*60+0}' stroke='black' stroke-width='5' marker-end='url(#endmrk)'/>\n")
+		}
+
+		f.write("</svg>\n")
+
+		f.close() if fname != nil
+	rescue => error 
+		puts error
+	end
+end
 
 # arg :hash or string
 def args2dict(arg,klist,uk=nil)
@@ -26,9 +125,11 @@ def args2dict(arg,klist,uk=nil)
 		}
 	elsif arg.instance_of?(Hash) then
 		kwargs = arg		
+	elsif arg.instance_of?(Array) and uk!=nil then
+		kwargs[uk] = arg	
 	else
 		p "args type str or hash"
-		return None
+		return nil
 	end
 	
 	exval = []
@@ -56,7 +157,7 @@ def arg2dict(arg,klist,uk=nil)
 		kwargs = arg		
 	else
 		p "args type str or hash"
-		return None
+		return nil
 	end
 	
 	exval = []
@@ -70,28 +171,48 @@ def arg2dict(arg,klist,uk=nil)
 	exval.each{|k|
 		kwargs.delete(k)
 	}
-	p kwargs
 	return kwargs
 end
 
 
 class NysolMOD
 
-	attr_accessor :name, :kwd,:inp,:outp,:refp,:unp,:msg
+	attr_accessor :name, :kwd,:inplist,:outlist,:nowdir,:msg
 
 	def initialize(name=nil,kwd=nil)
 		@name = name
 		@kwd   = kwd
-		@inp  = kwd["i"]
-		@kwd.delete("i") if kwd.has_key?("i") 
-		@outp = kwd["o"]
-		@kwd.delete("o") if kwd.has_key?("o") 
-		@refp = kwd["m"]
-		@kwd.delete("m") if kwd.has_key?("m") 
-		#@unp  = kwd["u"]
-		#@kwd.delete("u") if kwd.has_key?("u") 
-		@msg=false
+		@defaltdir = "o"
+		@nowdir   = @defaltdir
+		@inplist ={"i"=>[],"m"=>[]}
+		@outlist ={"o"=>[],"u"=>[]}
 
+
+		if @kwd.has_key?("i") then
+			@inplist["i"].push(@kwd["i"])
+			@kwd.delete("i") 
+		end
+
+		if @kwd.has_key?("o") then
+			@outlist["o"].push(@kwd["o"])
+			@kwd.delete("o") 
+		end
+
+		if @kwd.has_key?("m") then
+			@inplist["m"].push(@kwd["m"])
+			@kwd.delete("m") 
+		end
+
+		if @kwd.has_key?("u") then
+			@outlist["u"].push(@kwd["u"])
+			@kwd.delete("u") 
+		end
+		@msg=false
+	end
+
+	def direction(dir)
+		@nowdir   = dir
+		return self
 	end
 
 	def msgOn()
@@ -105,10 +226,15 @@ class NysolMOD
 	end
 	
 	def addPre(pre)
-		@inp = pre
+		@inplist["i"].push(pre) 
+		pre.outlist[pre.nowdir].push(self)
+		if not @inplist["m"].empty? and inplist["m"][0].is_a?(NysolMOD) then			
+			@inplist["m"][0].outlist[@inplist["m"][0].nowdir].push(self)
+		end
 		return self
 	end
 
+	#数値入れる？
 	def para2str()
 		rtnStr = ""
 		@kwd.each{|k,v|
@@ -120,73 +246,560 @@ class NysolMOD
 		}
 		return rtnStr
 	end
+	# f.w キーワードチェック入れる
 
-	def make_modlist()
-		i0 = nil
-		i1 = nil
-		if @inp.is_a?(NysolMOD) then
-			i0 = @inp.make_modlist()
-		elsif @inp.is_a?(Array) then
-			i0 = @inp
-		elsif @inp.is_a?(String) then
-			i0 = @inp
+	def paraUpdate(kw)
+		@kwd.update(kw)
+
+		if @kwd.has_key?("i") then
+			@inplist["i"].push(@kwd["i"])
+			@kwd.delete("i") 
 		end
-			 
-		if @refp.is_a?(NysolMOD) then
-			i1 = @refp.make_modlist() 
-		elsif @refp.is_a?(Array) then
-			i1 = @refp
-		elsif @refp.is_a?(String) then
-			i1 = @refp
+
+		if @kwd.has_key?("o") then
+			@outlist["o"].push(@kwd["o"])
+			@kwd.delete("o") 
 		end
-		return [@name,para2str(),i0,i1]
+
+		if @kwd.has_key?("m") then
+			@inplist["m"].push(@kwd["m"])
+			@kwd.delete("m") 
+		end
+
+		if @kwd.has_key?("u") then
+			@outlist["u"].push(@kwd["u"])
+			@kwd.delete("u") 
+		end
 	end
 
-	def run()
-
-		runA = false
-		outf = @outp
-		if not outf.instance_of?(String)then
-			outf = nil
-			runA = true 
-		end
-
-		list = make_modlist()
-		shobj = NYSOLRUBY::MshCore.new(@msg)
-		if runA then
-			return shobj.run(list,runA)
+	def check_dupObjSub(sumiobj,dupobj,obj)
+		if sumiobj.has_key?(obj) then
+			if dupobj.has_key?(obj) then
+				dupobj[obj] += 1
+			else
+				dupobj[obj] = 2			
+			end
+			return True 
 		else
-			list[1] += " o=" + outf 
-			shobj.run(list,runA)
-			return outf
+			if not obj.is_a?(String) then
+				sumiobj[obj] = true 
+			end
+			return false
 		end
 	end
 
-	def show()
-		list = []
-		runA = false
-		outf = @outp
-		if not outf.instance_of?(String)then
-			outf = nil
-			runA = true 
+
+	def check_dupObj(sumiobj,dupobj)
+
+		return if check_dupObjSub(sumiobj,dupobj,self) 
+
+		if ! @inplist["i"].empty? then
+			if @inplist["i"][0].is_a?(NysolMOD)then
+				@inplist["i"][0].check_dupObj(sumiobj,dupobj)
+			elsif @inplist["i"][0].is_a?(String) then
+				check_dupObjSub(sumiobj,dupobj,@inplist["i"][0])
+			elsif @inplist["i"][0].is_a?(ARRAY) then
+			end
 		end
-		list = make_modlist()
-		p list
+
+		if ! @inplist["m"].empty? then
+			if @inplist["m"][0].is_a?(NysolMOD) then
+				@inplist["m"][0].check_dupObj(sumiobj,dupobj) 
+			elsif @inplist["m"][0].is_a?(String) then
+				check_dupObjSub(sumiobj,dupobj,@inplist["m"][0])
+			elsif isinstance(@inplist["m"][0],list) then
+			end
+		end
 	end
+
+
+
+	def addTee(dupobj)
+
+		dupobj.each{|obj|
+			obj.outlist.keys.each{|k|
+				next if obj.outlist[k].empty?
+				
+				if obj.outlist[k].size() == 1 then
+					outll = obj.outlist[k][0]
+					fifoxxx=Nysol_Mfifo.new({"i"=>obj})			
+					obj.outlist[k][0] = fifoxxx
+					fifoxxx.outlist["o"]=[outll]
+					if ! outll.inplist["i"].empty? and obj == outll.inplist["i"][0] then
+						outll.inplist["i"] = [fifoxxx]
+					end
+					if outll.inplist["m"]!=0 and obj == outll.inplist["m"][0] then
+						outll.inplist["m"] = [fifoxxx]
+					end
+				else 
+					outll = obj.outlist[k]
+					teexxx = Nysol_M2tee.new({"i"=>obj})
+					obj.outlist[k]= [teexxx]
+					teexxx.outlist["o"] = [] 
+					outll.each{|outin|
+						if !outin.inplist["i"].empty? and obj == outin.inplist["i"][0] then
+							fifoxxx=Nysol_Mfifo.new({"i"=>teexxx})			
+							teexxx.outlist["o"].push(fifoxxx)
+							fifoxxx.outlist["o"]=[outin]
+							outin.inplist["i"] = [fifoxxx]
+						end
+						if !outin.inplist["m"].empty? and obj == outin.inplist["m"][0] then
+							fifoxxx==Nysol_Mfifo.new({"i"=>teexxx})
+							teexxx.outlist["o"].push(fifoxxx)
+							fifoxxx.outlist["o"]=[outin]
+							outin.inplist["m"] = [fifoxxx]
+						end
+					}
+				end
+			}
+		}
+	end
+
+
+
+	def change_modNetwork()
+
+		sumiobj={}
+		dupobj={}
+		check_dupObj(sumiobj,dupobj)
+		
+		sumiobj.each{|obj|
+			if obj.is_a?(NysolMOD) then
+				next if obj.name=="readlist"
+				next if obj.name=="writelist"
+				if ! obj.inplist["i"].empty?  and obj.inplist["i"][0].is_a?(Array) then
+					rlmod = Nysol_Readlist.new(obj.inplist["i"][0])
+					rlmod.outlist["o"] = [obj]
+					obj.inplist["i"][0]=rlmod
+				end
+
+				if ! obj.inplist["m"].empty?  and obj.inplist["m"][0].is_a?(Array) then
+					rlmod = Nysol_Readlist.new(obj.inplist["m"][0])
+					rlmod.outlist["o"] = [obj]
+					obj.inplist["m"][0]=rlmod
+				end
+				if ! obj.outlist["o"].empty?  and obj.outlist["o"][0].is_a?(Array) then
+					wlmod = Nysol_Writelist(obj.outlist["o"][0])
+					wlmod.inplist["i"]=[obj]
+					obj.outlist["o"][0] = wlmod
+				end
+
+				if ! obj.outlist["u"].empty?  and obj.outlist["u"][0].is_a?(Array) then
+					wlmod = Nysol_Writelist(obj.outlist["u"][0])
+					wlmod.inplist["i"]=[obj]
+					obj.outlist["u"][0] = wlmod
+				end
+			end
+		}
+
+		addTee(dupobj) if !dupobj.empty? 
+
+	end
+
+
+	def self.change_modNetworks(mods)
+		sumiobj={}
+		dupobj={}
+		mods.each{|mod|
+			mod.check_dupObj(sumiobj,dupobj)
+		}
+
+		sumiobj.each{|obj|
+			if obj.is_a?(NysolMOD) then
+				next if obj.name=="readlist"
+				next if obj.name=="writelist"
+				if ! obj.inplist["i"].empty?  and obj.inplist["i"][0].is_a?(Array) then
+					rlmod = Nysol_Readlist.new(obj.inplist["i"][0])
+					rlmod.outlist["o"] = [obj]
+					obj.inplist["i"][0]=rlmod
+				end
+
+				if ! obj.inplist["m"].empty?  and obj.inplist["m"][0].is_a?(Array) then
+					rlmod = Nysol_Readlist.new(obj.inplist["m"][0])
+					rlmod.outlist["o"] = [obj]
+					obj.inplist["m"][0]=rlmod
+				end
+				if ! obj.outlist["o"].empty?  and obj.outlist["o"][0].is_a?(Array) then
+					wlmod = Nysol_Writelist(obj.outlist["o"][0])
+					wlmod.inplist["i"]=[obj]
+					obj.outlist["o"][0] = wlmod
+				end
+
+				if ! obj.outlist["u"].empty?  and obj.outlist["u"][0].is_a?(Array) then
+					wlmod = Nysol_Writelist(obj.outlist["u"][0])
+					wlmod.inplist["i"]=[obj]
+					obj.outlist["u"][0] = wlmod
+				end
+			end
+		}
+		addTee(dupobj) if !dupobj.empty? 
+
+	end
+
+	def selectUniqMod(sumiobj,modlist)
+
+		return nil if sumiobj.has_key?(self)
+
+		pos = sumiobj.size()
+		sumiobj[self] = true
+		modlist[self]=pos
+		
+		@inplist["i"].each{|obj|
+			obj.selectUniqMod(sumiobj,modlist) if obj.is_a?(NysolMOD)
+		}
+		@inplist["m"].each{|obj|
+			obj.selectUniqMod(sumiobj,modlist) if obj.is_a?(NysolMOD)
+		}
+	end
+
+
+	def self.makeModList(uniqmod,modlist,iolist)
+
+		uniqmod.each{|obj,no|
+			modlist[no]= [obj.name,obj.para2str(),{}]
+			iolist[no]=[[],[],[],[]]
+
+			obj.inplist["i"].each{|ioobj|
+				#uniqmodに無ければ今回のルート外のはず
+				if ioobj.is_a?(NysolMOD) and uniqmod.has_key?(ioobj) then
+					iolist[no][0].push(uniqmod[ioobj])
+				elsif ioobj.is_a?(Array) then
+					modlist[no][2]["i"]=ioobj
+				elsif ioobj.is_a?(String) then
+					modlist[no][2]["i"]=ioobj
+				end
+			}
+			obj.inplist["m"].each{|ioobj|
+				#uniqmodに無ければ今回のルート外のはず
+				if ioobj.is_a?(NysolMOD) and uniqmod.has_key?(ioobj) then
+					iolist[no][1].push(uniqmod[ioobj])
+				elsif ioobj.is_a?(Array) then
+					modlist[no][2]["m"]=ioobj
+				elsif ioobj.is_a?(String) then
+					modlist[no][2]["m"]=ioobj
+				end
+			}
+			obj.outlist["o"].each{|ioobj|
+				#uniqmodに無ければ今回のルート外のはず
+				if ioobj.is_a?(NysolMOD) and uniqmod.has_key?(ioobj) then
+					iolist[no][2].push(uniqmod[ioobj])
+				elsif ioobj.is_a?(Array) then
+					modlist[no][2]["o"]=ioobj
+				elsif ioobj.is_a?(String) then
+					modlist[no][2]["o"]=ioobj
+				end
+			}
+			obj.outlist["u"].each{|ioobj|
+				#uniqmodに無ければ今回のルート外のはず
+				if ioobj.is_a?(NysolMOD) and uniqmod.has_key?(ioobj) then
+					iolist[no][3].push(uniqmod[ioobj])
+				elsif ioobj.is_a?(Array) then
+					modlist[no][2]["o"]=ioobj
+				elsif ioobj.is_a?(String) then
+					modlist[no][2]["o"]=ioobj
+				end
+			}
+		}
+	end
+
+
+	def self.getLink(iolist,base,to)
+
+		iolist[base][2].each{|v|
+			return "o" if v == to
+		}
+		iolist[base][3].each{|v|
+			return "u" if v == to
+		}
+		return nil
+	end
+
+
+	def self.makeLinkList(iolist,linklist)
+
+		iolist.each_with_index{|val,idx|
+			rtn = nil
+			val[0].each{|v|
+				if v.is_a?(Integer) then
+					rtn = getLink(iolist,v,idx)
+					linklist.push([[rtn,v],["i",idx]]) if rtn != nil
+				end
+			}
+			val[1].each{|v|
+				if v.is_a?(Integer) then
+					rtn = getLink(iolist,v,idx)
+					linklist.push([[rtn,v],["m",idx]]) if rtn != nil
+				end
+			}
+		}
+	end
+
+
+	def run(kw_args={})
+
+		# dup しない項目セット　#コピーメソッド実装した方がいい？
+		stock = @outlist["o"].empty? ?  nil : @outlist["o"][0]
+		dupobj = Marshal.load(Marshal.dump(self))
+
+
+		#oが無ければlist出力追加
+		rtnlist = []
+		if dupobj.outlist["o"].empty? then
+			runobj = dupobj.writelist(rtnlist)
+		elsif dupobj.name != "writelist" and dupobj.outlist["o"][0].is_a?(Array) then
+			runobj = dupobj.writelist(stock)
+			dupobj.outlist["o"] = [runobj]
+		elsif dupobj.outlist["o"][0].is_a?(Array) then
+			dupobj.outlist["o"][0] = stock
+			runobj = dupobj
+		else
+			runobj = dupobj
+		end
+
+		runobj.msg = true if kw_args.has_key?("msg") and kw_args["msg"] == "on" 
+				
+		outf = runobj.outlist["o"][0]
+
+		runobj.change_modNetwork()
+
+		uniqmod={} 
+		sumiobj= {}
+		runobj.selectUniqMod(sumiobj,uniqmod)
+
+
+		modlist= Array.new(uniqmod.size()) 
+		iolist=Array.new(uniqmod.size()) 
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+
+		shobj = NYSOLRUBY::MshCore.new(runobj.msg)
+		shobj.runL(modlist,linklist)
+
+		return outf
+
+	end
+
+	def self.runs(mods,kw_args={})
+
+		msgF =  (kw_args.has_key?("msg") and  kw_args["msg"] == "on") ? true : false
+				
+
+		stocks =Array.new(mods.size)
+		outfs = Array.new(mods.size)
+		
+		mods.each_with_index{|mod,i|
+			stocks[i] = mod.outlist["o"][0] unless mod.outlist["o"].empty?
+		}		
+				
+		dupobjs = Marshal.load(Marshal.dump(mods))
+
+		#oが無ければlist出力追加
+		runobjs =Array.new(dupobjs.size)
+
+		dupobjs.each_with_index{|dupobj,i| 
+
+			if dupobj.outlist["o"].empty? then
+				runobjs[i]= dupobj.writelist(Array.new())
+			elsif dupobj.name != "writelist" and dupobj.outlist["o"][0].is_a?(Array) then
+				runobj = dupobj.writelist(stocks[i])
+				dupobj.outlist["o"] = [runobj]
+				runobjs[i]= runobj
+			elsif dupobj.outlist["o"][0].is_a?(Array) then				
+				dupobj.outlist["o"][0] = stocks[i]
+				runobjs[i]= dupobj
+			else
+				runobjs[i]= dupobj
+			end
+			outfs[i] = runobjs[i].outlist["o"][0]
+		}
+
+		change_modNetworks(runobjs)
+		
+		uniqmod={} 
+		sumiobj= {}
+		
+		runobjs.each{|mod|
+			mod.selectUniqMod(sumiobj,uniqmod)
+		}
+
+		modlist = Array.new(uniqmod.size()) #[[name,para]]
+		iolist  = Array.new(uniqmod.size()) #[[iNo],[mNo],[oNo],[uNo]]
+
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+
+		shobj = NYSOLRUBY::MshCore.new(msgF)
+		shobj.runL(modlist,linklist)
+		return outfs
+	end
+
+
+	#GRAPH表示 #deepコピーしてからチェック
+	def drawModel(fname=nil)
+
+		dupshowobj = Marshal.load(Marshal.dump(self))
+
+		rtnlist = []
+		if dupshowobj.outlist["o"].empty? then
+			showobj = dupshowobj.writelist(rtnlist)
+		elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then
+			showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+			dupshowobj.outlist["o"] = [showobj]
+		else
+			showobj = dupshowobj
+		end
+
+		showobj.change_modNetwork()
+		uniqmod={} 
+		sumiobj= {}
+		showobj.selectUniqMod(sumiobj,uniqmod)
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+
+		NysolMOD.makeLinkList(iolist,linklist)
+		changeSVG(modlist,iolist,linklist,fname)
+
+	end
+
+	def modelInfo()
+
+		dupshowobj = Marshal.load(Marshal.dump(self))
+
+		rtnlist = []
+		if dupshowobj.outlist["o"].empty? then
+			showobj = dupshowobj.writelist(rtnlist)
+		elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then
+			showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+			dupshowobj.outlist["o"] = [showobj]
+		else
+			showobj = dupshowobj
+		end
+
+
+		showobj.change_modNetwork()
+		uniqmod={} 
+		sumiobj= set{}
+		showobj.selectUniqMod(sumiobj,uniqmod)
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+
+		makeLinkList(iolist,linklist)
+
+		return {"modlist"=>modlist,"iolist"=>iolist,"linklist"=>linklist}
+	end
+
+	#GRAPH表示 #deepコピーしてからチェック
+	def self.drawModels(mod,fname=nil)
+
+		dupshowobjs = Marshal.load(Marshal.dump(mod))
+		showobjs =[]
+		rtnlist = []
+
+		dupshowobjs.each{|dupshowobj|
+			if dupshowobj.outlist["o"].empty? then
+				showobjs.push(dupshowobj.writelist(rtnlist))
+			elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a(Array) then
+				showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+				dupshowobj.outlist["o"] = [showobj]
+				showobjs.push(showobj)
+			else
+				showobjs.push(dupshowobj)
+			end
+		}
+		change_modNetworks(showobjs)
+
+		uniqmod={} 
+		sumiobj= {}
+		showobjs.each{|modx|
+			modx.selectUniqMod(sumiobj,uniqmod)
+		}
+
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+		
+		changeSVG(modlist,iolist,linklist,fname)		
+
+	end
+
+	def self.modelInfos(mod)
+
+		dupshowobjs = Marshal.load(Marshal.dump(mod))
+
+		showobjs =[]
+		rtnlist = []
+		dupshowobjs.each{|dupshowobj|
+			if dupshowobj.outlist["o"].empty? then
+				showobjs.push(dupshowobj.writelist(rtnlist))
+			elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then 
+				showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+				dupshowobj.outlist["o"] = [showobj]
+				showobjs.push(showobj)
+			else
+				showobjs.push(dupshowobj)
+			end
+		}
+		change_modNetworks(showobjs)
+
+		uniqmod={} 
+		sumiobj= {}
+
+		showobjs.each{| mod|
+			mod.selectUniqMod(sumiobj,uniqmod)
+		}
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+		
+		return {"modlist"=>modlist,"iolist"=>iolist,"linklist"=>linklist}
+	end
+
 
   def each()
-		list = []
-		runA = false
-		outf = @outp
-		if not outf.instance_of?(String)then
-			outf = nil
-			runA = true 
+
+		if @outlist["o"].empty? then
+			runobj = Marshal.load(Marshal.dump(self))
+		else
+			print ("type ERORR")
+			return None
 		end
-		list = make_modlist()
 
-		shobj = NYSOLRUBY::MshCore.new(@msg)
 
-		vvv = shobj.runiter(list,runA)
+		runobj.change_modNetwork()
+
+		uniqmod={} 
+		sumiobj= {}
+		runobj.selectUniqMod(sumiobj,uniqmod)
+
+		modlist= Array.new(uniqmod.size()) 
+		iolist=Array.new(uniqmod.size()) 
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+
+		shobj = NYSOLRUBY::MshCore.new(runobj.msg)
+		vvv = shobj.runiter(modlist,linklist)
+
 		
 		while (line = shobj.readline(vvv)) != nil do
 			yield line
@@ -245,16 +858,28 @@ class NysolMOD
 	end
 
 
-	def self.mload(args)
-		return Nysol_Mload.new(args)
+	def mfifo(args)
+		return Nysol_Mfifo.new(args).addPre(self)
   end
-	def self.msave(args)
-		return Nysol_Msave.new(args)
+	def self.mfifo(args)
+		return Nysol_Mfifo.new(args)
   end
 
-	def msave(args)
-		return Nysol_Msave.new(args).addPre(self)
-	end
+	def writecsv(args)
+		return Nysol_Writecsv.new(args).addPre(self)
+  end
+
+	def self.writecsv(args)
+		return Nysol_Writecsv.new(args)
+  end
+
+	def writelist(args)
+		return Nysol_Writelist.new(args).addPre(self)
+  end
+
+	def self.writelist(args)
+		return Nysol_Writelist.new(args)
+  end
 
 	def self.cmd(args)
 		return Nysol_Excmd.new(args)
@@ -263,8 +888,6 @@ class NysolMOD
 	def cmd(args)
 		return Nysol_Excmd.new(args).addPre(self)
 	end
-
-
 
 
 	def self.m2cross(args)
@@ -852,24 +1475,51 @@ class NysolMOD
 	def mxml2csv(args)
 		return Nysol_Mxml2csv.new(args).addPre(self)
 	end
-
-
 end
 
 
-class  Nysol_Mload < NysolMOD
-	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("mload")
+class  Nysol_Mfifo < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("mfifo")
 	def initialize(args)
-		super("mload",args2dict(args,@@kwdList))
+		super("mfifo",args2dict(args,@@kwdList))
 	end
 end
 
-class  Nysol_Msave < NysolMOD
-	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("mload")
+class  Nysol_M2tee < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("m2tee")
 	def initialize(args)
-		super("msave",args2dict(args,@@kwdList))
+		super("m2tee",args2dict(args,@@kwdList))
 	end
 end
+
+
+class  Nysol_Writelist < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("writelist")
+	def initialize(args)
+		super("writelist",args2dict(args,@@kwdList,uk="o"))
+	end
+end
+
+class  Nysol_Writecsv < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("writecsv")
+	def initialize(args)
+		super("writecsv",args2dict(args,@@kwdList,uk="i"))
+	end
+end
+
+class  Nysol_Readcsv < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("readcsv")
+	def initialize(args)
+		super("readcsv",args2dict(args,@@kwdList,uk="i"))
+	end
+end
+class  Nysol_Readlist < NysolMOD
+	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("readlist")
+	def initialize(args)
+		super("readlist",args2dict(args,@@kwdList,uk="i"))
+	end
+end
+
 
 class  Nysol_Excmd < NysolMOD
 	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("cmd")
