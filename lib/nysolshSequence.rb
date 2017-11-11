@@ -111,7 +111,7 @@ class NysolShellSequence
 		runcmds = makeNetwork(@cmdlist)
 
 		nowMsgFlg = @msgFlg
-		nowMsgFlg=True if kwd.has_key?("msg") and  kwd["msg"] == "on"
+		nowMsgFlg=true if kwd.has_key?("msg") and  kwd["msg"] == "on"
 
 		if nowMsgFlg then
 			NysolMOD.runs(runcmds,{"msg"=>"on"})

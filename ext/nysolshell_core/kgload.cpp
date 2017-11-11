@@ -280,7 +280,6 @@ int kgLoad::run(VALUE i_p,int onum,int *o_p) try
 // -----------------------------------------------------------------------------
 int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx) try 
 {
-	cerr << "l0" << endl;
 	// パラメータチェック
 	_args.paramcheck("i=",kgArgs::COMMON|kgArgs::IODIFF);
 
