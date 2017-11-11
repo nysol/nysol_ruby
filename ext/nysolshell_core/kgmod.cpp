@@ -145,7 +145,7 @@ void kgMod::signalset(void) try {
 
 		sigaction( SIGPIPE, &sa_sigint_p, &oldact1 ); // signal  2
 		sigaction( SIGINT , &sa_sigint, &oldact2 ); // signal 11
-		sigaction( SIGSEGV, &sa_sigint, &oldact3 ); // signal 13
+//		sigaction( SIGSEGV, &sa_sigint, &oldact3 ); // signal 13
 		sigaction( SIGUSR1, &sa_sigint, &oldact4 ); // signal ユーザ定義
 	}
 }catch(kgError& err){

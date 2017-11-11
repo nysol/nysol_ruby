@@ -28,15 +28,16 @@ using namespace std;
 using namespace kglib;
 using namespace kgmod;
 
-static VALUE str2rbstr(string ptr)
+static VALUE str2rbstr(char *ptr)
 {
 	// rb_external_str_new_cstrが定義されているばそちらを使う
 	#if defined(rb_external_str_new_cstr)
-		return rb_external_str_new_cstr(ptr.c_str());
+		return rb_external_str_new_cstr(ptr);
 	#else
-		return rb_str_new2(ptr.c_str());
+		return rb_str_new2(ptr);
 	#endif
-	
+
+
 }
 
 // -----------------------------------------------------------------------------
@@ -279,6 +280,7 @@ int kgLoad::run(VALUE i_p,int onum,int *o_p) try
 // -----------------------------------------------------------------------------
 int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx) try 
 {
+	cerr << "l0" << endl;
 	// パラメータチェック
 	_args.paramcheck("i=",kgArgs::COMMON|kgArgs::IODIFF);
 
@@ -300,7 +302,8 @@ int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx) try
 			{
 				VALUE tlist = rb_ary_new2(rls.fldSize());
 				for(size_t j=0 ;j<rls.fldSize();j++){
-					rb_ary_store( tlist,j,str2rbstr(rls.getVal(j)) );
+					VALUE str = str2rbstr(rls.getVal(j));
+					rb_ary_store( tlist,j,str );
 				}
 				rb_ary_push(o_p,tlist);
 			}

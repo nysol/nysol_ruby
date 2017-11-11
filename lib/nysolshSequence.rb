@@ -26,7 +26,6 @@ class NysolShellSequence
 		p @cmdlist
 	end	
 
-
 	def makeNetwork(cmdlists)
 
 		conectLIST={}

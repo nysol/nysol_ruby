@@ -115,12 +115,14 @@ def args2dict(arg,klist,uk=nil)
 				elsif uk!=nil then
 					kwargs[uk] = vals[0]
 				else
-					p "unknown parameter"
+					p "unknown parameter1"
+					p arg,klist
 				end
 			elsif vals.size()==2 then
 				kwargs[vals[0]] = vals[1]
 			else 
-				p "unknown parameter"
+				p "unknown parameter2"
+					p arg,klist
 			end
 		}
 	elsif arg.instance_of?(Hash) then
@@ -279,7 +281,7 @@ class NysolMOD
 			else
 				dupobj[obj] = 2			
 			end
-			return True 
+			return true 
 		else
 			if not obj.is_a?(String) then
 				sumiobj[obj] = true 
@@ -298,7 +300,7 @@ class NysolMOD
 				@inplist["i"][0].check_dupObj(sumiobj,dupobj)
 			elsif @inplist["i"][0].is_a?(String) then
 				check_dupObjSub(sumiobj,dupobj,@inplist["i"][0])
-			elsif @inplist["i"][0].is_a?(ARRAY) then
+			elsif @inplist["i"][0].is_a?(Array) then
 			end
 		end
 
@@ -307,17 +309,17 @@ class NysolMOD
 				@inplist["m"][0].check_dupObj(sumiobj,dupobj) 
 			elsif @inplist["m"][0].is_a?(String) then
 				check_dupObjSub(sumiobj,dupobj,@inplist["m"][0])
-			elsif isinstance(@inplist["m"][0],list) then
+			elsif @inplist["m"][0].is_a?(Array) then
 			end
 		end
 	end
 
 
 
-	def addTee(dupobj)
+	def self.addTee(dupobj)
 
-		dupobj.each{|obj|
-			obj.outlist.keys.each{|k|
+		dupobj.each{|obj,_v|
+			obj.outlist.each{|k,_vv|
 				next if obj.outlist[k].empty?
 				
 				if obj.outlist[k].size() == 1 then
@@ -344,7 +346,7 @@ class NysolMOD
 							outin.inplist["i"] = [fifoxxx]
 						end
 						if !outin.inplist["m"].empty? and obj == outin.inplist["m"][0] then
-							fifoxxx==Nysol_Mfifo.new({"i"=>teexxx})
+							fifoxxx=Nysol_Mfifo.new({"i"=>teexxx})
 							teexxx.outlist["o"].push(fifoxxx)
 							fifoxxx.outlist["o"]=[outin]
 							outin.inplist["m"] = [fifoxxx]
@@ -363,10 +365,11 @@ class NysolMOD
 		dupobj={}
 		check_dupObj(sumiobj,dupobj)
 		
-		sumiobj.each{|obj|
+		sumiobj.each{|obj,_t|
 			if obj.is_a?(NysolMOD) then
 				next if obj.name=="readlist"
 				next if obj.name=="writelist"
+
 				if ! obj.inplist["i"].empty?  and obj.inplist["i"][0].is_a?(Array) then
 					rlmod = Nysol_Readlist.new(obj.inplist["i"][0])
 					rlmod.outlist["o"] = [obj]
@@ -392,7 +395,7 @@ class NysolMOD
 			end
 		}
 
-		addTee(dupobj) if !dupobj.empty? 
+		NysolMOD.addTee(dupobj) if !dupobj.empty? 
 
 	end
 
@@ -404,7 +407,7 @@ class NysolMOD
 			mod.check_dupObj(sumiobj,dupobj)
 		}
 
-		sumiobj.each{|obj|
+		sumiobj.each{|obj,_t|
 			if obj.is_a?(NysolMOD) then
 				next if obj.name=="readlist"
 				next if obj.name=="writelist"
@@ -432,7 +435,7 @@ class NysolMOD
 				end
 			end
 		}
-		addTee(dupobj) if !dupobj.empty? 
+		NysolMOD.addTee(dupobj) if !dupobj.empty? 
 
 	end
 
@@ -686,16 +689,16 @@ class NysolMOD
 
 		showobj.change_modNetwork()
 		uniqmod={} 
-		sumiobj= set{}
+		sumiobj= {}
 		showobj.selectUniqMod(sumiobj,uniqmod)
 
 		modlist=Array.new(uniqmod.size) #[[name,para]]
 		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
-		makeModList(uniqmod,modlist,iolist)
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
 
 		linklist=[]
 
-		makeLinkList(iolist,linklist)
+		NysolMOD.makeLinkList(iolist,linklist)
 
 		return {"modlist"=>modlist,"iolist"=>iolist,"linklist"=>linklist}
 	end
@@ -710,7 +713,7 @@ class NysolMOD
 		dupshowobjs.each{|dupshowobj|
 			if dupshowobj.outlist["o"].empty? then
 				showobjs.push(dupshowobj.writelist(rtnlist))
-			elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a(Array) then
+			elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then
 				showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
 				dupshowobj.outlist["o"] = [showobj]
 				showobjs.push(showobj)
@@ -879,6 +882,22 @@ class NysolMOD
 
 	def self.writelist(args)
 		return Nysol_Writelist.new(args)
+  end
+
+	def readcsv(args)
+		return Nysol_Readcsv.new(args).addPre(self)
+  end
+
+	def self.readcsv(args)
+		return Nysol_Readcsv.new(args)
+  end
+
+	def readlist(args)
+		return Nysol_Readlist.new(args).addPre(self)
+  end
+
+	def self.readlist(args)
+		return Nysol_Readlist.new(args)
   end
 
 	def self.cmd(args)
@@ -1503,14 +1522,24 @@ end
 class  Nysol_Writecsv < NysolMOD
 	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("writecsv")
 	def initialize(args)
-		super("writecsv",args2dict(args,@@kwdList,uk="i"))
+		super("writecsv",args2dict(args,@@kwdList,uk="o"))
 	end
 end
 
 class  Nysol_Readcsv < NysolMOD
 	@@kwdList = NYSOLRUBY::MshCore.new().getparalist("readcsv")
 	def initialize(args)
-		super("readcsv",args2dict(args,@@kwdList,uk="i"))
+		kwargs={}
+		if args.instance_of?(String) then
+			kwargs["i"] = args	
+		elsif args.instance_of?(Hash) then
+			kwargs = args		
+		elsif args.instance_of?(Array) then
+			kwargs["i"] = args.join(",")
+		else 
+			p "unsuport type"
+		end
+		super("readcsv",args2dict(kwargs,@@kwdList))
 	end
 end
 class  Nysol_Readlist < NysolMOD

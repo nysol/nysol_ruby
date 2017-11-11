@@ -31,11 +31,11 @@ using namespace kglib;
 static VALUE str2rbstr(string ptr)
 {
 	// rb_external_str_new_cstrが定義されているばそちらを使う
-	#if defined(rb_external_str_new_cstr)
-		return rb_external_str_new_cstr(ptr.c_str());
-	#else
+//	#if defined(rb_external_str_new_cstr)
+//		return rb_external_str_new_cstr(ptr.c_str());
+//	#else
 		return rb_str_new2(ptr.c_str());
-	#endif
+//	#endif
 	
 }
 
@@ -248,7 +248,9 @@ void *kgshell::run_func(void *arg)try{
 
 void *kgshell::run_writelist(void *arg)try{
 	argST *a =(argST*)arg; 
+	rb_gc_disable();
 	a->mobj->run(a->i_cnt,a->i_p,a->list,a->mutex);
+	rb_gc_enable();
 	return NULL;
 }catch(...){
 //	argST *a =(argST*)arg; 
@@ -326,6 +328,22 @@ int kgshell::run(
 	vector<linkST> & plist
 )try
 {
+/*
+	kgMod* mm = _kgmod_map.find("writelist")->second();
+
+	kgArgs newArgs;
+	newArgs.add("i=testdata/jp/0.csv");
+	mm->init(newArgs, &_env);
+	argST argstv;
+	argstv.mobj= mm;
+	argstv.i_cnt= 0;
+	argstv.i_p= NULL;
+	argstv.list = cmds[0].oobj;
+
+	kgshell::run_writelist(&argstv);
+	return 0;
+*/
+	
 
 	makePipeList(plist);
 
@@ -354,7 +372,7 @@ int kgshell::run(
 				cerr << endl;
 			}
 	}
-*/
+	*/
 	_clen = cmds.size();
 
 	_modlist = new kgMod*[_clen];
@@ -472,22 +490,24 @@ int kgshell::run(
 				}
 			}
 		}
+		rb_gc_start();
 		//debug
-		//cerr << i << ":"<< argst[i].mobj->name() << " " << argst[i].i_cnt << " " << argst[i].o_cnt ;
-		//if ( argst[i].i_cnt > 0&& argst[i].i_p!=NULL){
-		//	cerr << " i:" ;
-		//	for(size_t j=0; j< argst[i].i_cnt;j++){
-		//		cerr <<  *(argst[i].i_p+j) << " " ;
-		//	}
-		//}
-		//if ( argst[i].o_cnt > 0 && argst[i].o_p!=NULL){
-		//	cerr << " o:" ;
-		//	for(size_t j=0; j< argst[i].o_cnt;j++){
-		//		cerr <<  *(argst[i].o_p+j) << " " ;
-		//	}
-		//}
-		//cerr << endl;
-
+		/*
+		cerr << i << ":"<< argst[i].mobj->name() << " " << argst[i].i_cnt << " " << argst[i].o_cnt ;
+		if ( argst[i].i_cnt > 0&& argst[i].i_p!=NULL){
+			cerr << " i:" ;
+			for(size_t j=0; j< argst[i].i_cnt;j++){
+				cerr <<  *(argst[i].i_p+j) << " " ;
+			}
+		}
+		if ( argst[i].o_cnt > 0 && argst[i].o_p!=NULL){
+			cerr << " o:" ;
+			for(size_t j=0; j< argst[i].o_cnt;j++){
+				cerr <<  *(argst[i].o_p+j) << " " ;
+			}
+		}
+		cerr << endl;
+		*/
 		if(typ==0){
 			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_func ,(void*)&argst[i]);
 		}
@@ -509,6 +529,7 @@ int kgshell::run(
 		delete[] _modlist;
 	}
 	_modlist = NULL;
+	rb_gc_start();
 
 	return 0;
 }catch(...){
