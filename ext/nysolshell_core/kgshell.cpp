@@ -30,12 +30,12 @@ using namespace kglib;
 
 static VALUE str2rbstr(string ptr)
 {
-	// rb_external_str_new_cstrが定義されているばそちらを使う
-//	#if defined(rb_external_str_new_cstr)
-//		return rb_external_str_new_cstr(ptr.c_str());
-//	#else
-		return rb_str_new2(ptr.c_str());
-//	#endif
+		//rb_external_str_new_cstrが定義されているばそちらを使う
+		#if defined(rb_external_str_new_cstr)
+			return rb_external_str_new_cstr(ptr.c_str());
+		#else
+			return rb_str_new2(ptr.c_str());
+		#endif
 	
 }
 
@@ -250,7 +250,7 @@ void *kgshell::run_writelist(void *arg)try{
 	argST *a =(argST*)arg; 
 	rb_gc_disable();
 	a->mobj->run(a->i_cnt,a->i_p,a->list,a->mutex);
-	rb_gc_enable();
+	//rb_gc_enable();
 	return NULL;
 }catch(...){
 //	argST *a =(argST*)arg; 
@@ -393,6 +393,7 @@ int kgshell::run(
 	pthread_t _th_st_p[_clen];
 	int _th_rtn[_clen];
 	argST argst[_clen];
+	bool writeLFlg=false;
 	for(int i=_clen-1;i>=0;i--){
 
 		argst[i].mobj= _modlist[i];
@@ -490,7 +491,6 @@ int kgshell::run(
 				}
 			}
 		}
-		rb_gc_start();
 		//debug
 		/*
 		cerr << i << ":"<< argst[i].mobj->name() << " " << argst[i].i_cnt << " " << argst[i].o_cnt ;
@@ -512,6 +512,10 @@ int kgshell::run(
 			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_func ,(void*)&argst[i]);
 		}
 		else if(typ==1){
+			if(!writeLFlg){
+				rb_gc_disable();
+				writeLFlg=true;
+			} 
 			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_writelist ,(void*)&argst[i]);
 		}
 		else if(typ==2){
@@ -530,6 +534,7 @@ int kgshell::run(
 	}
 	_modlist = NULL;
 	rb_gc_start();
+	rb_gc_enable();// f.w　もとに戻す処理追加
 
 	return 0;
 }catch(...){
@@ -539,7 +544,7 @@ int kgshell::run(
 kgCSVfld* kgshell::runiter(
 	vector<cmdCapselST> &cmds,	
 	vector<linkST> & plist
-)try{
+)try{ //WRITELISTは使えないようにする
 
 	makePipeList(plist);
 	if( pipe(_csvpiped) < 0){ throw kgError("pipe open error on kgshell");}
