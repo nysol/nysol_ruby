@@ -133,12 +133,14 @@ class kgMod
 	// 正常終了処理(メッセージ出力)
 	void successEnd(void);
 	void successEnd(const string& comment);
+	string successEndMsg(void);
 
 	// エラー終了処理(メッセージ出力)
 	void errorEnd(kgError& err);
 	void errorEnd(void);
 	void errorEnd(kgError& err, const string& comment);
 	void errorEnd(const string& comment);
+	string errorEndMsg(kgError& err);
 
 	// 入力データ件数と出力データ件数
 	// 各モジュールで独自に登録する．
@@ -157,9 +159,9 @@ class kgMod
 	// run仮想関数
 	// ----------------------------------------------------------------
 	virtual int run(int i,int o){return 0;};
-	virtual int run(int inum,int *i,int onum, int* o){return 0;}
-	virtual int run(int inum,int *i,VALUE o,pthread_mutex_t *mtx){return 0;};
-	virtual int run(VALUE i_p,int onum, int* o_p){return 0;}
+	virtual int run(int inum,int *i,int onum, int* o,string & msg){return 0;}
+	virtual int run(int inum,int *i,VALUE o,pthread_mutex_t *mtx,string & msg){return 0;};
+	virtual int run(VALUE i_p,int onum, int* o_p,string & msg){return 0;}
 
 
 

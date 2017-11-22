@@ -218,6 +218,7 @@ kgshell::kgshell(int mflg){
 		_th_st_pp = NULL;
 		_clen = 0;
 		_modlist=NULL;
+
 		if(!mflg){  _env.verblvl(2);	}
 
 	  if (pthread_mutex_init(&_mutex, NULL) == -1) { 
@@ -225,7 +226,13 @@ kgshell::kgshell(int mflg){
 			ss << "init mutex error";
 			throw kgError(ss.str());
 	  }
-	  if (pthread_cond_init(&_threadState, NULL) == -1) { 
+	  if (pthread_mutex_init(&_stsMutex, NULL) == -1) { 
+			ostringstream ss;
+			ss << "init mutex error";
+			throw kgError(ss.str());
+	  }
+
+	  if (pthread_cond_init(&_stsCond, NULL) == -1) { 
 			ostringstream ss;
 			ss << "init cond mutex error";
 			throw kgError(ss.str());
@@ -236,38 +243,68 @@ kgshell::kgshell(int mflg){
 
 
 void *kgshell::run_func(void *arg)try{
+	string msg;
 	argST *a =(argST*)arg; 
-	a->mobj->run(a->i_cnt,a->i_p,a->o_cnt,a->o_p);
-	return NULL;
-}catch(...){
-//	argST *a =(argST*)arg; 
-//	if(a->i_p>0){ ::close(a->i_p);}
-//	if(a->o_p>0){ ::close(a->o_p);}
-	return NULL;
+	int sts = a->mobj->run(a->i_cnt,a->i_p,a->o_cnt,a->o_p,msg);
+	pthread_mutex_lock(a->stMutex);
+	a->status =sts;
+	a->finflg=true;
+	a->msg.append(msg);
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
+
+}
+catch(...){
+	argST *a =(argST*)arg; 
+	pthread_mutex_lock(a->stMutex);
+	a->status = 1;
+	a->finflg=true;
+	a->msg.append("unKnown ERROR");
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
 }
 
 void *kgshell::run_writelist(void *arg)try{
+	string msg;
 	argST *a =(argST*)arg; 
-	rb_gc_disable();
-	a->mobj->run(a->i_cnt,a->i_p,a->list,a->mutex);
-	//rb_gc_enable();
-	return NULL;
-}catch(...){
-//	argST *a =(argST*)arg; 
-//	if(a->i_p>0){ ::close(a->i_p);}
-//	if(a->o_p>0){ ::close(a->o_p);}
-	return NULL;
+	int sts = a->mobj->run(a->i_cnt,a->i_p,a->list,a->mutex,msg);
+	pthread_mutex_lock(a->stMutex);
+	a->status = sts;
+	a->finflg=true;
+	a->msg.append(msg);
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
+
+}
+catch(...){
+	argST *a =(argST*)arg; 
+	pthread_mutex_lock(a->stMutex);
+	a->status = 1;
+	a->finflg=true;
+	a->msg.append("unKnown ERROR");
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
 }
 
 void *kgshell::run_readlist(void *arg)try{
+	string msg;
 	argST *a =(argST*)arg; 
-	a->mobj->run(a->list,a->o_cnt,a->o_p);
-	return NULL;
+	int sts = a->mobj->run(a->list,a->o_cnt,a->o_p,msg);
+	pthread_mutex_lock(a->stMutex);
+	a->status = sts;
+	a->finflg=true;
+	a->msg.append(msg);
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
+
 }catch(...){
-//	argST *a =(argST*)arg; 
-//	if(a->i_p>0){ ::close(a->i_p);}
-//	if(a->o_p>0){ ::close(a->o_p);}
-	return NULL;
+	argST *a =(argST*)arg; 
+	pthread_mutex_lock(a->stMutex);
+	a->status = 1;
+	a->finflg=true;
+	a->msg.append("unKnown ERROR");
+	pthread_cond_signal(a->stCond);
+	pthread_mutex_unlock(a->stMutex);
 }
 
 
@@ -328,28 +365,9 @@ int kgshell::run(
 	vector<linkST> & plist
 )try
 {
-/*
-	kgMod* mm = _kgmod_map.find("writelist")->second();
-
-	kgArgs newArgs;
-	newArgs.add("i=testdata/jp/0.csv");
-	mm->init(newArgs, &_env);
-	argST argstv;
-	argstv.mobj= mm;
-	argstv.i_cnt= 0;
-	argstv.i_p= NULL;
-	argstv.list = cmds[0].oobj;
-
-	kgshell::run_writelist(&argstv);
-	return 0;
-*/
-	
 
 	makePipeList(plist);
 
-	//typedef map<int, map<string,vector<int> > > iomap_t;
-	//iomap_t _ipipe_map;
-	//iomap_t _opipe_map;
 	//DEBUG
 	/*
 	for(iomap_t::iterator it=_ipipe_map.begin() ;it!=_ipipe_map.end();it++){
@@ -390,13 +408,20 @@ int kgshell::run(
 		_modlist[i]->init(newArgs, &_env);
 	}
 
-	pthread_t _th_st_p[_clen];
+	_th_st_pp = new pthread_t[_clen];
+	argST *argst = new argST[_clen];
 	int _th_rtn[_clen];
-	argST argst[_clen];
-	bool writeLFlg=false;
+	bool writeLFlg = false;
+
 	for(int i=_clen-1;i>=0;i--){
 
 		argst[i].mobj= _modlist[i];
+		argst[i].finflg = false;
+		argst[i].outputEND = false;
+		argst[i].status = 0;
+		argst[i].stMutex = &_stsMutex;
+		argst[i].stCond = &_stsCond;
+
 		int typ = _kgmod_run.find(cmds[i].cmdname)->second ;
 
 		//	DEBIG
@@ -509,29 +534,62 @@ int kgshell::run(
 		cerr << endl;
 		*/
 		if(typ==0){
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_func ,(void*)&argst[i]);
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_func ,(void*)&argst[i]);
 		}
 		else if(typ==1){
 			if(!writeLFlg){
 				rb_gc_disable();
 				writeLFlg=true;
 			} 
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_writelist ,(void*)&argst[i]);
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_writelist ,(void*)&argst[i]);
 		}
 		else if(typ==2){
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_readlist ,(void*)&argst[i]);
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_readlist ,(void*)&argst[i]);
 		}
 	}
+	// status check
+	pthread_mutex_lock(&_stsMutex);
+	while(1){
+		int pos = 0;
+		bool endFLG = true;
+		while(pos<_clen){
+			if(argst[pos].finflg==false){ endFLG=false;}
+			else if(argst[pos].outputEND==false){
+				if(!argst[pos].msg.empty()){
+					cerr << argst[pos].msg << endl; 
+				}
+				argst[pos].outputEND = true;
+			}
+			if(argst[pos].status!=0){
+				//エラー発生時はthread cancel
+				for(int j=0;j<_clen;j++){
+					pthread_cancel(_th_st_pp[j]);	
+				}
+				endFLG=true;
+				break;
+			}
+			pos++;
+		}
+		if (endFLG) break;
+		pthread_cond_wait(&_stsCond,&_stsMutex);
+	}
+	pthread_mutex_unlock(&_stsMutex);
 
 	for(int i=_clen;i>0;i--){
-		pthread_join(_th_st_p[i-1],NULL);
+		pthread_join(_th_st_pp[i-1],NULL);
 	}
 	if(_modlist){
 		for(size_t i=0 ;i<_clen;i++){
+			if(argst[i].outputEND == false && !argst[i].msg.empty()){
+				cerr << argst[i].msg << endl;
+				argst[i].outputEND = true;
+			}
 			delete _modlist[i];
 		}
 		delete[] _modlist;
 	}
+	delete[] _th_st_pp;
+	_th_st_pp = NULL;
 	_modlist = NULL;
 	rb_gc_start();
 	rb_gc_enable();// f.w　もとに戻す処理追加
@@ -570,12 +628,19 @@ kgCSVfld* kgshell::runiter(
 		_modlist[i]->init(newArgs, &_env);
 	}
 
-	pthread_t _th_st_p[_clen];
+	_th_st_pp = new pthread_t[_clen];
 	int _th_rtn[_clen];
-	argST argst[_clen];
+	argST *argst = new argST[_clen];
+
 	for(int i=_clen-1;i>=0;i--){
 
 		argst[i].mobj= _modlist[i];
+		argst[i].finflg = false;
+		argst[i].outputEND = false;
+		argst[i].status = 0;
+		argst[i].stMutex = &_stsMutex;
+		argst[i].stCond = &_stsCond;
+
 		int typ = _kgmod_run.find(cmds[i].cmdname)->second ;
 		//	DEBIG
 		//	cerr << "-------------------" << endl;
@@ -683,13 +748,13 @@ kgCSVfld* kgshell::runiter(
 		//}
 		//cerr << endl;
 		if(typ==0){
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_func ,(void*)&argst[i]);
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_func ,(void*)&argst[i]);
 		}
-		else if(typ==1){
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_writelist ,(void*)&argst[i]);
+		else if(typ==1){//これは使えないようにする
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_writelist ,(void*)&argst[i]);
 		}
 		else if(typ==2){
-			_th_rtn[i] = pthread_create( &_th_st_p[i], NULL, kgshell::run_readlist ,(void*)&argst[i]);
+			_th_rtn[i] = pthread_create( &_th_st_pp[i], NULL, kgshell::run_readlist ,(void*)&argst[i]);
 		}
 	}
 	// データ出力

@@ -51,9 +51,9 @@ public:
 	//実行メソッド
 	int run(void);
 	//実行メソッド
-	int run(int inum,int *i_p,int onum, int* o_p);
-	int run(int inum,int *i,VALUE o_p,pthread_mutex_t *mtx);
-	int run(VALUE ,int onum, int* o_p);
+	int run(int inum,int *i_p,int onum, int* o_p,string &msg);
+	int run(int inum,int *i,VALUE o_p,pthread_mutex_t *mtx,string &msg);
+	int run(VALUE i_p ,int onum, int* o_p,string &msg);
 
 };
 

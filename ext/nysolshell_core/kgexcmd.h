@@ -46,7 +46,7 @@ public:
 	//実行メソッド
 	int run(void);
 	//実行メソッド
-	int run(int inum,int *i_p,int onum, int* o_p);
+	int run(int inum,int *i_p,int onum, int* o_p ,string & str);
 };
 
 }

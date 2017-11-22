@@ -145,7 +145,7 @@ void kgMod::signalset(void) try {
 
 		sigaction( SIGPIPE, &sa_sigint_p, &oldact1 ); // signal  2
 		sigaction( SIGINT , &sa_sigint, &oldact2 ); // signal 11
-//		sigaction( SIGSEGV, &sa_sigint, &oldact3 ); // signal 13
+		sigaction( SIGSEGV, &sa_sigint, &oldact3 ); // signal 13
 		sigaction( SIGUSR1, &sa_sigint, &oldact4 ); // signal ユーザ定義
 	}
 }catch(kgError& err){
@@ -309,6 +309,24 @@ void kgMod::AssertWarnig(void){
 		kgMsg asertmsg(kgMsg::WAR, _env);
 		asertmsg.output("exist NULL in key filed");
 	}
+}
+
+string kgMod::errorEndMsg(kgError& err){
+	err.addModName(_name);
+	kgMsg msg(kgMsg::ERR, _env);
+	_status = 1;
+	if( _env->recursiveMsg() ){
+		return msg.outputMsg(this,err.message());
+	}else{
+		return msg.outputMsg(this,err.message(0));
+	}
+	
+}
+string kgMod::successEndMsg(void){
+	AssertWarnig();
+	_status = 0;
+	kgMsg msg(kgMsg::END, _env);
+	return msg.outputMsg(this,"");
 }
 
 void kgMod::successEnd(void)
