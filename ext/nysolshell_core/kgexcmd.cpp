@@ -40,10 +40,6 @@ kgExcmd::kgExcmd(void)
 	_paraflg = kgArgs::COMMON|kgArgs::IODIFF;
 
 	_titleL = _title = "";
-//	_docL   = _doc  = "";
-//	#ifdef JPN_FORMAT
-//		#include <help/jp/kgtab2csvHelp.h>
-//	#endif
 	
 }
 // -----------------------------------------------------------------------------
@@ -72,9 +68,11 @@ void kgExcmd::setArgs(void)
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgExcmd::run(void){
+int kgExcmd::run(void)
+{
 	try {
 		return 0;
+
 	}catch(kgError& err){
 
 		errorEnd(err);
@@ -92,25 +90,25 @@ int kgExcmd::run(void){
 		errorEnd(err);
 	}
 	return 1;
+
 }
-
-
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgExcmd::run(int inum,int *i_p,int onum, int* o_p,string& msg) 
+int kgExcmd::run(int inum,int *i_p,int onum, int* o_p ,string& msg)
 {
-	try {
+	try{
 		setArgs();
 		if(inum>1 || onum>1){
 			throw kgError("no match IO");
 		}
+
 		int i_p_t=-1; 
 		int o_p_t=-1;
 		// 入出力ファイルオープン
 		if(inum==1 && *i_p > 0){ i_p_t = *i_p; }
 		if(onum==1 && *o_p > 0){ o_p_t = *o_p; }
-		
+
 		pid_t pid;
 		if ((pid = fork()) == 0) {	
 			if(i_p_t>0){
@@ -137,7 +135,7 @@ int kgExcmd::run(int inum,int *i_p,int onum, int* o_p,string& msg)
 			throw kgError("fork error" );
 		}
 		return 0;
-	
+
 	}catch(kgError& err){
 
 		msg.append(errorEndMsg(err));
@@ -156,8 +154,7 @@ int kgExcmd::run(int inum,int *i_p,int onum, int* o_p,string& msg)
 
 		kgError err("unknown error" );
 		msg.append(errorEndMsg(err));
+
 	}
 	return 1;
 }
-
-

@@ -311,6 +311,7 @@ void kgMod::AssertWarnig(void){
 	}
 }
 
+
 string kgMod::errorEndMsg(kgError& err){
 	err.addModName(_name);
 	kgMsg msg(kgMsg::ERR, _env);
@@ -328,6 +329,7 @@ string kgMod::successEndMsg(void){
 	kgMsg msg(kgMsg::END, _env);
 	return msg.outputMsg(this,"");
 }
+
 
 void kgMod::successEnd(void)
 {

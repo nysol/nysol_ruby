@@ -33,6 +33,7 @@ void runCore(VALUE mlist,VALUE linklist ,vector< cmdCapselST > & cmdCapsel, vect
 		cmpcaplocal.cmdname  = RSTRING_PTR(rb_ary_entry(modinfo ,0));
 		kgstr_t para_part    = RSTRING_PTR(rb_ary_entry(modinfo ,1));
 		VALUE addinfo    = rb_ary_entry(modinfo ,2);
+		cmpcaplocal.tag      = RSTRING_PTR(rb_ary_entry(modinfo ,3));
 
 		cmpcaplocal.paralist = kglib::splitTokenQ(para_part, ' ',true);
 

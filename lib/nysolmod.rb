@@ -83,15 +83,27 @@ def changeSVG(mlist,iolist,linklist,fname=nil)
 			mstr +=  modobj[0]
 			mstr += " </text>\n"
 			f.write(mstr)
-			f.write("<g>\n")
+			f.write("</g>\n")
 		}
 
 		linklist.each{|fr,to|
 			frNo = fr[1] 
 			toNo = to[1] 
+			frTp = fr[0] 
+			toTp = to[0] 
 			frX , frY = dsppos[frNo]
 			toX , toY = dsppos[toNo]
-			f.write("<line x1='#{frX*60+20}' y1='#{frY*60+40}' x2='#{toX*60+20}' y2='#{toY*60+0}' stroke='black' stroke-width='5' marker-end='url(#endmrk)'/>\n")
+			x = toX-frX
+			y = toY-frY
+			z = ((x ** 2) + (y ** 2)) ** 0.5
+		
+			xsub = 20.0 * x / z
+			ysub = 20.0 * y / z
+
+			f.write("<g>\n")
+			f.write("<title>#{frTp} => #{toTp}</title>\n" )
+			f.write("<line x1='#{20+frX*60+xsub}' y1='#{20+frY*60+ysub}' x2='#{20+toX*60-xsub}' y2='#{20+toY*60-ysub}' stroke='black' stroke-width='5' marker-end='url(#endmrk)'/>\n")
+			f.write("</g>\n")
 		}
 
 		f.write("</svg>\n")
@@ -100,6 +112,201 @@ def changeSVG(mlist,iolist,linklist,fname=nil)
 	rescue => error 
 		puts error
 	end
+end
+
+
+
+
+def changeSVG_D3(mlist,iolist,linklist,fname=nil)
+
+	dsppos,ymax,xmax = dicisionPos(mlist,iolist)
+
+	begin
+		if fname == nil then
+			f=STDOUT
+		else
+			f=open(fname, 'w')
+		end
+
+	
+		f.write("<html>\n")
+		f.write("<head>\n")
+	
+		f.write("<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n")
+		f.write("<script>\n")
+		f.write("var NodeDATA=[")
+
+		mlastNo = dsppos.size
+		dsppos.each_with_index{|mm,i|
+			modobj = mlist[i]
+			x,y = mm
+			if  modobj[3] == "" then
+				f.write("{ title:\"#{modobj[0]} #{modobj[1]}\",")
+			else
+				f.write("{ title:\"#{modobj[0]} #{modobj[1]} @ #{modobj[3]}\",")
+			end
+
+			f.write(" x:#{x*60+20} , y:#{y*60+20} , name:\"#{modobj[0]}\"}" ) 
+
+			if mlastNo==i+1 then
+				f.write("]\n")
+			else
+				f.write(",\n")
+			end
+		}
+		f.write("var EdgeDATA=[")
+
+		elastNo = linklist.size
+		linklist_n2e=Array.new(mlastNo)
+
+		linklist.each_with_index{|frto,i|
+			fr,to = frto
+			frNo = fr[1] 
+			toNo = to[1] 
+			frTp = fr[0] 
+			toTp = to[0] 
+			frX , frY = dsppos[frNo]
+			toX , toY = dsppos[toNo]
+
+			linklist_n2e[frNo] =[[],[]] if linklist_n2e[frNo] == nil 
+			linklist_n2e[frNo][0].push(i.to_s)
+
+			linklist_n2e[toNo] =[[],[]] if linklist_n2e[toNo] == nil
+			linklist_n2e[toNo][1].push(i.to_s)
+
+			f.write("{ title:\"#{frTp} => #{toTp} \"," )
+			f.write(" x1:#{frX*60+20},y1:#{frY*60+20},x2:#{toX*60+20},y2:#{toY*60+20} }" )
+			if elastNo==i+1 then
+				f.write("]\n")
+			else
+				f.write(",\n")
+			end
+		}
+
+		n2elastNo = linklist_n2e.size()
+		f.write("var LinkLIST=[")
+		
+		linklist_n2e.each_with_index{|n2elist,i|
+
+			f.write("[[#{n2elist[0].join(',')}],[#{n2elist[1].join(',')}]]")
+			if n2elastNo ==i+1 then
+				f.write("]\n")
+			else
+				f.write(",\n")
+			end
+		}
+
+		f.write("</script>\n")
+		f.write("</head>")
+		f.write("<body>")
+		f.write("<svg id='flowDspArea' height='#{ymax*60*2}' width='#{xmax*60*2}'>\n")
+		f.write("<defs>\n")
+		f.write("<marker id='endmrk' markerUnits='strokeWidth' markerWidth='3' markerHeight='3' viewBox='0 0 10 10' refX='5' refY='5' orient='auto'>\n")
+		f.write("<polygon points='0,0 5,5 0,10 10,5 ' fill='black'/>\n")
+		f.write("</marker>\n")
+		f.write("</defs>\n")
+		f.write("</svg>\n")
+		scp =<<EOS
+	<script>
+	svgGroup = d3.select('#flowDspArea');
+	node_g = svgGroup.selectAll('g .node').data(NodeDATA);
+	edge_g = svgGroup.selectAll('g .edge').data(EdgeDATA);
+	// 移動処理用
+	var drag = d3.behavior.drag()
+	drag.on('drag', dragMove);
+	function dragMove(d,i) {
+		d.x += d3.event.dx
+  	d.y += d3.event.dy
+   	d3.select(this)
+   		.attr('transform','translate('+d.x+','+d.y+')')
+		for(var j=0 ; j<LinkLIST[i][0].length;j++){
+			EdgeDATA[LinkLIST[i][0][j]].x1 += d3.event.dx
+			EdgeDATA[LinkLIST[i][0][j]].y1 += d3.event.dy
+	   	d3.select('#edgeP-'+LinkLIST[i][0][j])
+				.attr('x1',function(d) {
+					return d.x1 + ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('x2',function(d) {
+					return d.x2 - ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('y1',function(d) {
+					return d.y1 + ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('y2',function(d) { 
+					return d.y2 - ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+		}
+		for(var j=0 ; j<LinkLIST[i][1].length;j++){
+			EdgeDATA[LinkLIST[i][1][j]].x2 += d3.event.dx
+			EdgeDATA[LinkLIST[i][1][j]].y2 += d3.event.dy
+	   	d3.select('#edgeP-'+LinkLIST[i][1][j])
+				.attr('x1',function(d) {
+					return d.x1 + ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('x2',function(d) {
+					return d.x2 - ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('y1',function(d) {
+					return d.y1 + ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+				.attr('y2',function(d) { 
+					return d.y2 - ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+				})
+		}
+	}
+ 	node_g2 = node_g.enter().append('g')
+		.attr('class', 'node')
+		.attr('id', function (d,i) {return 'node-' + i;})
+		.attr('transform',function (d) { return 'translate('+d.x+','+d.y+')'})
+    .call(drag)		
+
+	node_g2.append('title')
+			.text(function(d) { return d.title})
+
+	node_g2.append('circle')
+		.attr('r',20)
+		.attr('stroke','blue')
+		.attr('fill','white')
+		.attr('stroke-width',1)
+
+	node_g2.append('text')
+		.attr('x',function(d) { return -20})
+		.attr('fill','black')
+		.text(function(d) { return d.name})
+
+ 	edge_g2 = edge_g.enter().append('g')
+		.attr('class', 'edge')
+		.attr('id', function (d,i) {return 'edge-' + i;})
+
+	edge_g2.append('line')
+		.attr('id', function (d,i) {return 'edgeP-' + i;})
+		.attr('x1',function(d) {
+			return d.x1 + ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+		})
+		.attr('x2',function(d) {
+			return d.x2 - ( 20.0 * (d.x2-d.x1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+		})
+		.attr('y1',function(d) {
+			return d.y1 + ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+		})
+		.attr('y2',function(d) { 
+			return d.y2 - ( 20.0 * (d.y2-d.y1) / (Math.pow(Math.pow(d.x2-d.x1,2)+Math.pow(d.y2-d.y1,2),0.5)))
+		})
+		.attr('stroke','black')
+		.attr('stroke-width','5')
+		.attr('marker-end','url(#endmrk)')
+	</script>
+EOS
+
+		f.write(scp)
+		f.write("</body>\n")
+		f.write("</html>\n")
+		f.close()
+
+	rescue => error 
+		puts error
+	end
+
 end
 
 # arg :hash or string
@@ -139,6 +346,7 @@ def args2dict(arg,klist,uk=nil)
 		next if klist[0].include?(k) and v.instance_of?(String)
 		next if klist[0].include?(k)
 		next if klist[1].include?(k) and v == true
+		next if k == "tag"
 		exval.push(k)
 		p k + " is not keyword"
 	}
@@ -167,6 +375,7 @@ def arg2dict(arg,klist,uk=nil)
 		next if klist[0].include?(k) and v.instance_of?(String)
 		next if klist[0].include?(k)
 		next if klist[1].include?(k) and v == true
+		next if k == "tag"
 		exval.push(k)
 		p k + " is not keyword"
 	}
@@ -179,7 +388,7 @@ end
 
 class NysolMOD
 
-	attr_accessor :name, :kwd,:inplist,:outlist,:nowdir,:msg
+	attr_accessor :name, :kwd,:inplist,:outlist,:nowdir,:msg,:tag
 
 	def initialize(name=nil,kwd=nil)
 		@name = name
@@ -188,8 +397,14 @@ class NysolMOD
 		@nowdir   = @defaltdir
 		@inplist ={"i"=>[],"m"=>[]}
 		@outlist ={"o"=>[],"u"=>[]}
+		@tag = ""
 
 
+		if @kwd.has_key?("tag") then
+			@tag = kwd["tag"]
+			@kwd.delete("tag") 
+		end
+			
 		if @kwd.has_key?("i") then
 			@inplist["i"].push(@kwd["i"])
 			@kwd.delete("i") 
@@ -459,7 +674,7 @@ class NysolMOD
 	def self.makeModList(uniqmod,modlist,iolist)
 
 		uniqmod.each{|obj,no|
-			modlist[no]= [obj.name,obj.para2str(),{}]
+			modlist[no]= [obj.name,obj.para2str(),{},obj.tag]
 			iolist[no]=[[],[],[],[]]
 
 			obj.inplist["i"].each{|ioobj|
@@ -672,6 +887,37 @@ class NysolMOD
 
 	end
 
+	#GRAPH表示 #deepコピーしてからチェック
+	def drawModelD3(fname=nil)
+
+		dupshowobj = Marshal.load(Marshal.dump(self))
+
+		rtnlist = []
+		if dupshowobj.outlist["o"].empty? then
+			showobj = dupshowobj.writelist(rtnlist)
+		elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then
+			showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+			dupshowobj.outlist["o"] = [showobj]
+		else
+			showobj = dupshowobj
+		end
+
+		showobj.change_modNetwork()
+		uniqmod={} 
+		sumiobj= {}
+		showobj.selectUniqMod(sumiobj,uniqmod)
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+
+		linklist=[]
+
+		NysolMOD.makeLinkList(iolist,linklist)
+		changeSVG_D3(modlist,iolist,linklist,fname)
+
+	end
+
 	def modelInfo()
 
 		dupshowobj = Marshal.load(Marshal.dump(self))
@@ -737,6 +983,43 @@ class NysolMOD
 		NysolMOD.makeLinkList(iolist,linklist)
 		
 		changeSVG(modlist,iolist,linklist,fname)		
+
+	end
+
+	#GRAPH表示 #deepコピーしてからチェック
+	def self.drawModelsD3(mod,fname=nil)
+
+		dupshowobjs = Marshal.load(Marshal.dump(mod))
+		showobjs =[]
+		rtnlist = []
+
+		dupshowobjs.each{|dupshowobj|
+			if dupshowobj.outlist["o"].empty? then
+				showobjs.push(dupshowobj.writelist(rtnlist))
+			elsif dupshowobj.name != "writelist" and dupshowobj.outlist["o"][0].is_a?(Array) then
+				showobj = dupshowobj.writelist(dupshowobj.outlist["o"][0])
+				dupshowobj.outlist["o"] = [showobj]
+				showobjs.push(showobj)
+			else
+				showobjs.push(dupshowobj)
+			end
+		}
+		change_modNetworks(showobjs)
+
+		uniqmod={} 
+		sumiobj= {}
+		showobjs.each{|modx|
+			modx.selectUniqMod(sumiobj,uniqmod)
+		}
+
+
+		modlist=Array.new(uniqmod.size) #[[name,para]]
+		iolist=Array.new(uniqmod.size) #[[iNo],[mNo],[oNo],[uNo]]
+		NysolMOD.makeModList(uniqmod,modlist,iolist)
+		linklist=[]
+		NysolMOD.makeLinkList(iolist,linklist)
+		
+		changeSVG_D3(modlist,iolist,linklist,fname)		
 
 	end
 

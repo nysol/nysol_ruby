@@ -52,10 +52,6 @@ kgLoad::kgLoad(void)
 	_paraflg = kgArgs::COMMON|kgArgs::IODIFF;
 
 	_titleL = _title = "";
-//	_docL   = _doc  = "";
-//	#ifdef JPN_FORMAT
-//		#include <help/jp/kgtab2csvHelp.h>
-//	#endif
 	
 }
 // -----------------------------------------------------------------------------
@@ -100,11 +96,10 @@ void kgLoad::setArgs(int inum,int *i_p,int onum,int* o_p)
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgLoad::run(void) 
+int kgLoad::run(void)
 {
 	try {
 		size_t fcnt=0;
-
 		// パラメータセット＆入出力ファイルオープン
 		setArgs();
 
@@ -129,7 +124,6 @@ int kgLoad::run(void)
 		_oFile.close();
 		successEnd();
 		return 0;
-
 	}catch(kgError& err){
 		_iFile.close();
 		_oFile.close();
@@ -154,19 +148,18 @@ int kgLoad::run(void)
 		errorEnd(err);
 		return 1;
 	}
+	return 1;
 }
 
 // -----------------------------------------------------------------------------
 // 実行
 // -----------------------------------------------------------------------------
-int kgLoad::run(int inum,int *i_p,int onum, int* o_p,string &msg)  
+int kgLoad::run(int inum,int *i_p,int onum, int* o_p,string &msg)
 {
-
-	try{
+	try {
 		size_t fcnt=0;
 		// パラメータセット＆入出力ファイルオープン
 		setArgs(inum, i_p,onum, o_p);
-
 		// headerがあるとき
 		if(!_nfn_i){
 			vector<string> head;
@@ -199,7 +192,7 @@ int kgLoad::run(int inum,int *i_p,int onum, int* o_p,string &msg)
 		_oFile.close();
 		kgError err(e.what());
 		msg.append(errorEndMsg(err));
-	
+
 	}catch(char * er){
 		_iFile.close();
 		_oFile.close();
@@ -230,12 +223,10 @@ int kgLoad::run(VALUE i_p,int onum,int *o_p,string &msg)
 		if(onum==1 && *o_p > 0){ _oFile.popen(*o_p, _env,_nfn_o); }
 		else     { _oFile.open(_args.toString("o=",true), _env,_nfn_o);}
 
-
 		if(TYPE(i_p)==T_ARRAY){ 
 			size_t max = RARRAY_LEN(i_p);
 			size_t fldsize = 0;
 			size_t nowlin = 0;
-
 			vector<string> headdata;
 			if ( max > 0 ){
 				// headerがあるとき
@@ -265,6 +256,7 @@ int kgLoad::run(VALUE i_p,int onum,int *o_p,string &msg)
 					_oFile.writeFld(fldsize,vals);
 					nowlin++;
 				}
+				delete[] vals;
 			}
 		}else{
 			throw kgError("not python Array");
@@ -299,19 +291,16 @@ int kgLoad::run(VALUE i_p,int onum,int *o_p,string &msg)
 // -----------------------------------------------------------------------------
 int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx,string &msg) 
 {
-	try{
+	try {
 		// パラメータチェック
 		_args.paramcheck("i=",kgArgs::COMMON|kgArgs::IODIFF);
+		if(inum>1){ throw kgError("no match IO"); }
 
-		if(inum>1){
-			throw kgError("no match IO");
-		}
 		kgCSVfld rls;
 
 		// 入出力ファイルオープン
 		if(inum==1 && *i_p > 0){ rls.popen(*i_p, _env,_nfn_i); }
 		else     { rls.open(_args.toString("i=",true), _env,_nfn_i); }
-
 		rls.read_header();
 
 		if(TYPE(o_p)==T_ARRAY){ 
@@ -320,8 +309,7 @@ int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx,string &msg)
 				{
 					VALUE tlist = rb_ary_new2(rls.fldSize());
 					for(size_t j=0 ;j<rls.fldSize();j++){
-						VALUE str = str2rbstr(rls.getVal(j));
-						rb_ary_store( tlist,j,str );
+						rb_ary_store( tlist,j,str2rbstr(rls.getVal(j)));
 					}
 					rb_ary_push(o_p,tlist);
 				}
@@ -334,26 +322,27 @@ int kgLoad::run(int inum,int *i_p,VALUE o_p,pthread_mutex_t *mtx,string &msg)
 		}
 		msg.append(successEndMsg());
 		return 0;
+
 	}
 	catch(kgError& err){
 		pthread_mutex_unlock(mtx);
 		msg.append(errorEndMsg(err));
+
 	}catch (const exception& e) {
-		pthread_mutex_unlock(mtx); 
+		pthread_mutex_unlock(mtx);
 		kgError err(e.what());
 		msg.append(errorEndMsg(err));
 
 	}catch(char * er){
-		pthread_mutex_unlock(mtx); 
+		pthread_mutex_unlock(mtx);
 		kgError err(er);
 		msg.append(errorEndMsg(err));
 
 	}catch(...){
-		pthread_mutex_unlock(mtx); 
+		pthread_mutex_unlock(mtx);
 		kgError err("unknown error" );
 		msg.append(errorEndMsg(err));
+
 	}
 	return 1;
 }
-
-

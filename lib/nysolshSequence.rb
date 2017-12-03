@@ -131,6 +131,16 @@ class NysolShellSequence
 		NysolMOD.drawModels(runcmds,fname)
 	end
 
+	def drawModelD3(fname=nil)
+
+		runlist = Marshal.load(Marshal.dump(@cmdlist))
+
+		runcmds = makeNetwork(runlist)
+
+		NysolMOD.drawModelsD3(runcmds,fname)
+	end
+
+
 	def modelInfo()
 
 		runlist = Marshal.load(Marshal.dump(@cmdlist))

@@ -37,8 +37,6 @@ struct argST{
 	kgMod * mobj;
 	int i_cnt;
 	int o_cnt;
-//	int m_p;
-//	int u_p;
 	int *i_p;
 	int *o_p;
 	VALUE list;
@@ -46,9 +44,12 @@ struct argST{
 	bool outputEND;
 	int status;
 	kgstr_t msg;
+	kgstr_t tag;
+	kgstr_t endtime;
 	pthread_mutex_t *mutex;
 	pthread_mutex_t *stMutex;
 	pthread_cond_t *stCond;
+
 };
 
 struct cmdCapselST{
@@ -59,6 +60,7 @@ struct cmdCapselST{
 	kgstr_t mstr;
 	VALUE mobj;
 	VALUE oobj;
+	kgstr_t tag;
 
 };
 
