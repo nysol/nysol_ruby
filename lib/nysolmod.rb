@@ -17,7 +17,6 @@
 # * for more details.
 #
 # ////////// LICENSE INFO ////////////////////*/
-require 'set'
 require 'mparallelEXT'
 require 'nysolshell_core'
 
