@@ -584,7 +584,7 @@ class NysolMOD
 
 
 	def change_modNetwork()
-		self.change_modNetworks([self])
+		NysolMOD.change_modNetworks([self])
 	end
 
 
@@ -760,7 +760,7 @@ class NysolMOD
 
 	def run(kw_args={})
 
-		self.runs([self],kw_args)
+		NysolMOD.runs([self],kw_args)
 
 	end
 
@@ -885,7 +885,7 @@ class NysolMOD
 	#GRAPH表示 #deepコピーしてからチェック
 	def drawModelD3(fname=nil)
 
-		NysolMOD.drawModelD3s([self],fname)
+		NysolMOD.drawModelsD3([self],fname)
 
 	end
 
